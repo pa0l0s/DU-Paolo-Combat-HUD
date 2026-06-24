@@ -21,6 +21,7 @@ local warnPct = 75 --export: warning threshold percent (yellow bar)
 local critPct = 90 --export: critical threshold percent (pink pulsing bar)
 local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
 local title = "BASE INVENTORY" --export: header title text
+local bimDebug = true --export: print [BIM] diagnostics to the Lua console / game log
 '@.Trim()
 
 $bridge = @'
@@ -29,6 +30,7 @@ _G.warnPct = warnPct
 _G.critPct = critPct
 _G.sortMode = sortMode
 _G.title = title
+_G.bimDebug = bimDebug
 BIM.start()
 '@.Trim()
 

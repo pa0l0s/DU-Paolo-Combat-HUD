@@ -3,7 +3,14 @@
 BIM = BIM or {}
 local M = BIM
 
--- (functions added in later tasks)
+-- Debug logging to the board console / game log (grep the log for "[BIM]").
+-- Toggle off with the `debug` export.
+local function dbg(msg)
+  if M.debug == false then return end
+  if _G.system and _G.system.print then
+    _G.system.print("[BIM] " .. tostring(msg))
+  end
+end
 
 local function round1(n) return math.floor(n * 10 + 0.5) / 10 end
 
@@ -215,12 +222,15 @@ function M.renderHTML(model)
 end
 
 local function buildConfig()
+  local debug = _G.bimDebug
+  if debug == nil then debug = true end
   return {
     refreshSeconds = _G.refreshSeconds or 5,
     warnPct = _G.warnPct or 75,
     critPct = _G.critPct or 90,
     sortMode = _G.sortMode or "fill-desc",
     title = _G.title or "BASE INVENTORY",
+    debug = debug,
   }
 end
 
@@ -242,23 +252,46 @@ local function env()
            config = M.config, tick = M._tick }
 end
 
+-- Print the class + name reported by every linked slot (diagnostics).
+local function dumpSlots()
+  for i = 1, MAX_SLOTS do
+    local s = _G["slot" .. i]
+    if s ~= nil then
+      local cls, nm = "?", "?"
+      pcall(function() cls = tostring(s.getClass()) end)
+      pcall(function() nm = tostring(s.getName()) end)
+      dbg(string.format("slot%d: class=%s name=%s", i, cls, nm))
+    end
+  end
+end
+
 function M.start()
   M.config = buildConfig()
+  M.debug = M.config.debug
   M._tick = 0
+  dbg("onStart begin -- scanning slot1.." .. MAX_SLOTS)
+  dumpSlots()
   local e = env()
+  dbg(string.format("detected: screen=%s containers=%d",
+      e.screen and "OK" or "MISSING", #e.containers))
   if e.screen and e.screen.activate then
     pcall(function() e.screen.activate() end)
+    dbg("screen.activate() called")
   end
-  M.run(e)
+  local html = M.run(e)
+  dbg("run -> setHTML len=" .. (html and #html or "nil (no screen)"))
   if _G.unit and _G.unit.setTimer then
     _G.unit.setTimer("refresh", M.config.refreshSeconds)
+    dbg("timer 'refresh' set to " .. tostring(M.config.refreshSeconds) .. "s")
   end
+  dbg("onStart done")
 end
 
 function M.tick()
   M.config = M.config or buildConfig()
   M._tick = (M._tick or 0) + 1
-  M.run(env())
+  local html = M.run(env())
+  dbg("tick #" .. M._tick .. " -> setHTML len=" .. (html and #html or "nil"))
 end
 
 function M.run(e)
