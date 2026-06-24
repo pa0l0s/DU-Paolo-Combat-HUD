@@ -63,4 +63,32 @@ function M.buildRows(slots, getName)
   return rows
 end
 
+function M.sortRows(rows, mode)
+  if mode == "none" then return rows end
+  local cmp
+  if mode == "fill-asc" then
+    cmp = function(a, b) return a.pct < b.pct end
+  elseif mode == "name" then
+    cmp = function(a, b) return tostring(a.label) < tostring(b.label) end
+  else -- "fill-desc" default
+    cmp = function(a, b) return a.pct > b.pct end
+  end
+  table.sort(rows, cmp)
+  return rows
+end
+
+function M.aggregate(rows)
+  local totalVol, totalMax, count = 0, 0, 0
+  for _, r in ipairs(rows) do
+    if r.ok then
+      totalVol = totalVol + (r.vol or 0)
+      totalMax = totalMax + (r.maxVol or 0)
+      count = count + 1
+    end
+  end
+  local pct = 0
+  if totalMax > 0 then pct = math.floor((totalVol / totalMax) * 100 + 0.5) end
+  return { totalVol = totalVol, totalMax = totalMax, pct = pct, count = count }
+end
+
 return M

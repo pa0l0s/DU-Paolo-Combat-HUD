@@ -48,5 +48,27 @@ do
   eq("error row label", rows[3].label, "Glass")
 end
 
+do
+  local rows = {
+    {label="B", vol=200, maxVol=1000, mass=0, pct=20, ok=true},
+    {label="A", vol=900, maxVol=1000, mass=0, pct=90, ok=true},
+    {label="C", vol=0,   maxVol=0,    mass=0, pct=0,  ok=false},
+  }
+  local desc = BIM.sortRows({rows[1],rows[2],rows[3]}, "fill-desc")
+  eq("fill-desc top", desc[1].label, "A")
+  local asc = BIM.sortRows({rows[1],rows[2],rows[3]}, "fill-asc")
+  eq("fill-asc top", asc[1].pct, 0)
+  local byname = BIM.sortRows({rows[1],rows[2]}, "name")
+  eq("name sort", byname[1].label, "A")
+
+  local agg = BIM.aggregate({rows[1],rows[2],rows[3]})
+  eq("agg count ok-only", agg.count, 2)
+  eq("agg totalVol", agg.totalVol, 1100)
+  eq("agg totalMax", agg.totalMax, 2000)
+  eq("agg pct", agg.pct, 55)
+  local empty = BIM.aggregate({})
+  eq("agg empty pct", empty.pct, 0)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
