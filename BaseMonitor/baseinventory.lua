@@ -159,7 +159,8 @@ end
 local CSS = [[
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Consolas','Courier New',monospace;}
-.bim{position:absolute;top:0;left:0;width:100vw;height:100vh;background:#0d0211;color:#e7d9f5;overflow:hidden;}
+html,body{width:100%;height:100%;}
+.bim{position:absolute;top:0;left:0;width:100%;height:100%;background:#0d0211;color:#e7d9f5;overflow:hidden;}
 .bim .grid{position:absolute;inset:0;background-image:linear-gradient(#2a0a3a 1px,transparent 1px),linear-gradient(90deg,#2a0a3a 1px,transparent 1px);background-size:4vh 4vh;opacity:0.25;}
 .bim .scanline{position:absolute;inset:0;background:repeating-linear-gradient(transparent 0,transparent 3px,rgba(0,0,0,0.25) 3px,rgba(0,0,0,0.25) 4px);pointer-events:none;opacity:0.5;}
 .bim .wrap{position:relative;padding:3vh 4vw;height:100%;display:flex;flex-direction:column;}
