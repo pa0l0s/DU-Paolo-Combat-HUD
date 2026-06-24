@@ -42,5 +42,5 @@ The fill bar and mass are always accurate (read as true volume), even for mixed 
 ## Developing
 
 - Single source of truth: `baseinventory.lua`.
-- Run tests: `lua54 tests/run.lua` (install Lua via `winget install DEVCOM.Lua`).
+- Run tests: `lua tests/run.lua` (install Lua via `winget install DEVCOM.Lua`; the DEVCOM.Lua install may name the binary `lua` or `lua54`; use whichever resolves).
 - Regenerate the autoconf: `pwsh -File build.ps1` → `BaseMonitor.conf`.

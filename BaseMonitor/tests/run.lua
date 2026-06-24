@@ -160,6 +160,10 @@ do
     check("conf inlines source", has(conf, "function M.renderHTML"))
     check("conf calls start", has(conf, "BIM.start()"))
     check("conf calls tick", has(conf, "BIM.tick()"))
+    check("conf has --export annotation", has(conf, "--export:"))
+    check("conf has export refreshSeconds", has(conf, "local refreshSeconds = 5 --export"))
+    check("conf bridges refreshSeconds to global", has(conf, "_G.refreshSeconds = refreshSeconds"))
+    check("conf bridges title to global", has(conf, "_G.title = title"))
   end
 end
 
