@@ -146,5 +146,22 @@ do
   check("tick redrew", _G.screen.last:find("SYNC #1", 1, true) ~= nil)
 end
 
+do
+  local f = io.open("BaseMonitor/BaseMonitor.conf", "r")
+  check("conf exists", f ~= nil)
+  if f then
+    local conf = f:read("*a"); f:close()
+    local function has(h, n) return h:find(n, 1, true) ~= nil end
+    check("conf has core slot", has(conf, "class: CoreUnit"))
+    check("conf has screen slot", has(conf, "class: ScreenUnit"))
+    check("conf has container1", has(conf, "container1:"))
+    check("conf has container24", has(conf, "container24:"))
+    check("conf has ItemContainer", has(conf, "class: ItemContainer"))
+    check("conf inlines source", has(conf, "function M.renderHTML"))
+    check("conf calls start", has(conf, "BIM.start()"))
+    check("conf calls tick", has(conf, "BIM.tick()"))
+  end
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
