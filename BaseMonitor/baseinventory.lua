@@ -190,4 +190,34 @@ function M.renderHTML(model)
   return table.concat(parts)
 end
 
+function M.run(env)
+  local screen = env.screen
+  if not screen then return nil end
+  local cfg = env.config or {}
+  local title = cfg.title or "BASE INVENTORY"
+  local warnPct = cfg.warnPct or 75
+  local critPct = cfg.critPct or 90
+
+  if not env.core then
+    local html = M.renderHTML({
+      title = title, warnPct = warnPct, critPct = critPct, tick = env.tick or 0,
+      rows = {}, agg = {totalVol=0, totalMax=0, pct=0, count=0},
+      error = "CORE not linked",
+    })
+    screen.setHTML(html)
+    return html
+  end
+
+  local getName = function(id) return env.core.getElementNameById(id) end
+  local rows = M.buildRows(env.slots or {}, getName)
+  M.sortRows(rows, cfg.sortMode or "fill-desc")
+  local agg = M.aggregate(rows)
+  local html = M.renderHTML({
+    title = title, warnPct = warnPct, critPct = critPct, tick = env.tick or 0,
+    rows = rows, agg = agg,
+  })
+  screen.setHTML(html)
+  return html
+end
+
 return M

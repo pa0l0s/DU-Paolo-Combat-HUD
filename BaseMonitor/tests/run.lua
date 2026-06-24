@@ -103,5 +103,31 @@ do
   check("error panel", has(errHtml, "CORE not linked"))
 end
 
+do
+  local screen = S.screen()
+  local core = S.core({[11]="T1 Ore", [12]="Pure T1"})
+  local slots = {
+    S.handle({vol=900, maxVol=1000, mass=3000, id=11}),
+    S.handle({vol=100, maxVol=1000, mass=400, id=12}),
+  }
+  local cfg = {warnPct=75, critPct=90, sortMode="fill-desc", title="BASE INVENTORY"}
+  local html = BIM.run({core=core, screen=screen, slots=slots, config=cfg, tick=3})
+
+  local function has(h, n) return h:find(n, 1, true) ~= nil end
+  check("run returns html", type(html) == "string")
+  check("screen received html", screen.last == html)
+  check("run draws fuller first", has(html, "T1 Ore"))
+  check("title used", has(html, "BASE INVENTORY"))
+
+  -- nil screen -> nil, no crash
+  local none = BIM.run({core=core, screen=nil, slots=slots, config=cfg, tick=1})
+  check("nil screen -> nil", none == nil)
+
+  -- nil core -> error panel drawn
+  local s2 = S.screen()
+  BIM.run({core=nil, screen=s2, slots=slots, config=cfg, tick=1})
+  check("nil core error panel", s2.last:find("CORE", 1, true) ~= nil)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

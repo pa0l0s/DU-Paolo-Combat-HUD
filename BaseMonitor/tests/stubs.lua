@@ -16,4 +16,14 @@ function stubs.namer(map)
   return function(id) return map[id] end
 end
 
+function stubs.screen()
+  local self = { last = nil }
+  self.setHTML = function(h) self.last = h end
+  return self
+end
+
+function stubs.core(nameMap)
+  return { getElementNameById = function(id) return nameMap[id] end }
+end
+
 return stubs
