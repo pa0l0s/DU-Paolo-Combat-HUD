@@ -79,8 +79,46 @@ function M.itemLabel(content, getItem, maxShown)
   return label
 end
 
+local function titleCase(s)
+  return (tostring(s or ""):gsub("(%a)([%w_]*)", function(a, b) return a:upper() .. b:lower() end))
+end
+
+-- Build a CATEGORY label from contents: tier (or tier range) + dominant item type,
+-- e.g. "T1 Ore", "T1-2 Pure". Returns nil when nothing to name from.
+function M.categoryLabel(content, getItem)
+  if not content or #content == 0 or not getItem then return nil end
+  local qtyByType, order, minT, maxT = {}, {}, nil, nil
+  for _, e in ipairs(content) do
+    local id = e.id or e[1]
+    local q = e.quantity or e[2] or 0
+    if id and id ~= 0 then
+      local it = getItem(id)
+      if it then
+        local t = it.type or "item"
+        if not qtyByType[t] then qtyByType[t] = 0; order[#order + 1] = t end
+        qtyByType[t] = qtyByType[t] + q
+        local tr = it.tier
+        if tr then
+          if not minT or tr < minT then minT = tr end
+          if not maxT or tr > maxT then maxT = tr end
+        end
+      end
+    end
+  end
+  if #order == 0 then return nil end
+  local domType, domQ = order[1], qtyByType[order[1]]
+  for _, t in ipairs(order) do if qtyByType[t] > domQ then domType, domQ = t, qtyByType[t] end end
+  local tierStr = ""
+  if minT then
+    tierStr = (minT == maxT) and ("T" .. minT .. " ") or ("T" .. minT .. "-" .. maxT .. " ")
+  end
+  local label = tierStr .. titleCase(domType)
+  if #order > 1 then label = label .. " +" .. (#order - 1) end
+  return label
+end
+
 -- Read one linked container/hub handle into a row record.
--- opts: { getItem = function(id)->item, labelMode = "auto"|"items"|"name" }
+-- opts: { getItem = fn(id)->item, labelMode = "auto"|"category"|"items"|"name" }
 local function readContainer(c, idx, opts)
   opts = opts or {}
   local mode = opts.labelMode or "auto"
@@ -88,7 +126,13 @@ local function readContainer(c, idx, opts)
   if mode ~= "name" then
     local content = nil
     pcall(function() content = c.getContent() end)
-    label = M.itemLabel(content, opts.getItem)
+    if mode == "category" then
+      label = M.categoryLabel(content, opts.getItem)
+    elseif mode == "items" then
+      label = M.itemLabel(content, opts.getItem)
+    else  -- auto: category, then item names, then the element's own name
+      label = M.categoryLabel(content, opts.getItem) or M.itemLabel(content, opts.getItem)
+    end
   end
   if not label then label = handleName(c, idx) end  -- name mode / fallback
 
@@ -514,6 +558,11 @@ function M.run(e)
       if system and system.getItem then pcall(function() it = system.getItem(id) end) end
       cache[id] = it or false
       v = cache[id]
+      if it then
+        dbg(string.format("item id=%s name=%s type=%s tier=%s", tostring(id),
+            tostring(it.locDisplayName or it.displayName or it.name),
+            tostring(it.type), tostring(it.tier)))
+      end
     end
     if v == false then return nil end
     return v

@@ -30,7 +30,7 @@ local warnPct = 75 --export: warning threshold percent (yellow bar)
 local critPct = 90 --export: critical threshold percent (pink pulsing bar)
 local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
 local title = "BASE INVENTORY" --export: header title text
-local labelMode = "auto" --export: row label source: auto (items, else name) | items | name
+local labelMode = "auto" --export: row label: auto (category>items>name) | category | items | name
 local bimDebug = true --export: print [BIM] diagnostics to the Lua console
 local bimHud = false --export: also mirror the display to the player HUD (press F on the board; it covers the whole view)
 '@.Trim()
