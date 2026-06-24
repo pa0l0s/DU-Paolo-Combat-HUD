@@ -217,7 +217,8 @@ function M.renderHTML(model)
     parts[#parts+1] = '</div>'
   end
 
-  parts[#parts+1] = string.format('<div class="footer">SYNC #%d</div>', model.tick or 0)
+  parts[#parts+1] = string.format('<div class="footer">SYNC #%d &nbsp;&bull;&nbsp; build %s</div>',
+    model.tick or 0, esc(model.build or "dev"))
   parts[#parts+1] = '</div></div>'
   return table.concat(parts)
 end
@@ -232,6 +233,7 @@ local function buildConfig()
     sortMode = _G.sortMode or "fill-desc",
     title = _G.title or "BASE INVENTORY",
     debug = debug,
+    build = _G.bimBuild or "dev",
   }
 end
 
@@ -270,6 +272,7 @@ function M.start()
   M.config = buildConfig()
   M.debug = M.config.debug
   M._tick = 0
+  dbg("===== Base Inventory Monitor build " .. tostring(M.config.build) .. " =====")
   dbg("onStart begin -- scanning slot1.." .. MAX_SLOTS)
   dumpSlots()
   local e = env()
@@ -308,7 +311,7 @@ function M.run(e)
   local agg = M.aggregate(rows)
   local html = M.renderHTML({
     title = title, warnPct = warnPct, critPct = critPct, tick = e.tick or 0,
-    rows = rows, agg = agg,
+    rows = rows, agg = agg, build = cfg.build,
   })
   screen.setHTML(html)
   return html

@@ -24,6 +24,12 @@ local title = "BASE INVENTORY" --export: header title text
 local bimDebug = true --export: print [BIM] diagnostics to the Lua console / game log
 '@.Trim()
 
+# A build stamp so you can confirm in-game which version is actually loaded.
+$stamp = (Get-Date).ToString("yyyy-MM-dd_HH:mm:ss")
+
+# Printed FIRST, before anything else, so the Lua console shows the running build.
+$banner = "system.print('[BIM] build $stamp loaded -- this is the latest script')"
+
 $bridge = @'
 _G.refreshSeconds = refreshSeconds
 _G.warnPct = warnPct
@@ -31,10 +37,10 @@ _G.critPct = critPct
 _G.sortMode = sortMode
 _G.title = title
 _G.bimDebug = bimDebug
-BIM.start()
 '@.Trim()
+$bridge = $bridge + "`n_G.bimBuild = '$stamp'`nBIM.start()"
 
-$onStartCode = $exports + "`n`n" + $source + "`n`n" + $bridge
+$onStartCode = $banner + "`n`n" + $exports + "`n`n" + $source + "`n`n" + $bridge
 $onTimerCode = 'if timerId == "refresh" then BIM.tick() end'
 
 # Slots: indices 0..9 -> slot1..slot10, plus the built-in negative slots.
