@@ -91,4 +91,103 @@ function M.aggregate(rows)
   return { totalVol = totalVol, totalMax = totalMax, pct = pct, count = count }
 end
 
+function M.classifyLevel(pct, warnPct, critPct)
+  if pct >= critPct then return "crit"
+  elseif pct >= warnPct then return "warn"
+  else return "ok" end
+end
+
+local function esc(s)
+  s = tostring(s or "")
+  s = s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+  return s
+end
+
+-- Bar color per level.
+local LEVEL_COLOR = { ok = "#00f3ff", warn = "#fffb00", crit = "#ff007f" }
+
+local function renderRow(M, r, warnPct, critPct)
+  if not r.ok then
+    return string.format(
+      '<div class="row offline"><div class="name">%s</div>'
+      .. '<div class="bar"><div class="fill" style="width:0%%"></div></div>'
+      .. '<div class="stat">OFFLINE</div></div>', esc(r.label))
+  end
+  local level = M.classifyLevel(r.pct, warnPct, critPct)
+  local color = LEVEL_COLOR[level]
+  local pctInt = math.floor(r.pct + 0.5)
+  return string.format(
+    '<div class="row %s"><div class="name">%s</div>'
+    .. '<div class="bar"><div class="fill" style="width:%d%%;background:%s;box-shadow:0 0 10px %s,0 0 20px %s"></div></div>'
+    .. '<div class="stat"><span class="vol">%s / %s</span>'
+    .. '<span class="mass">%s</span><span class="pct">%s</span></div></div>',
+    level, esc(r.label), pctInt, color, color, color,
+    M.formatVolume(r.vol), M.formatVolume(r.maxVol), M.formatMass(r.mass), M.formatPct(r.pct))
+end
+
+local CSS = [[
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Consolas','Courier New',monospace;}
+.bim{position:absolute;top:0;left:0;width:100vw;height:100vh;background:#0d0211;color:#e7d9f5;overflow:hidden;}
+.bim .grid{position:absolute;inset:0;background-image:linear-gradient(#2a0a3a 1px,transparent 1px),linear-gradient(90deg,#2a0a3a 1px,transparent 1px);background-size:4vh 4vh;opacity:0.25;}
+.bim .scanline{position:absolute;inset:0;background:repeating-linear-gradient(transparent 0,transparent 3px,rgba(0,0,0,0.25) 3px,rgba(0,0,0,0.25) 4px);pointer-events:none;opacity:0.5;}
+.bim .wrap{position:relative;padding:3vh 4vw;height:100%;display:flex;flex-direction:column;}
+.bim .title{font-size:5vh;font-weight:bold;letter-spacing:0.4vw;color:#00f3ff;text-shadow:0 0 8px #00f3ff,0 0 18px #ff007f;}
+.bim .sub{font-size:2.2vh;color:#b10dc9;margin-top:0.5vh;text-shadow:0 0 6px #b10dc9;}
+.bim .total{margin:2vh 0;}
+.bim .total .bar{height:3vh;}
+.bim .rows{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:1.2vh;}
+.bim .row{display:flex;align-items:center;gap:1.5vw;}
+.bim .row .name{width:22vw;font-size:2.4vh;color:#00f3ff;text-shadow:0 0 6px #00f3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bim .bar{flex:1;height:2.6vh;background:rgba(255,255,255,0.06);border:1px solid #3a1150;border-radius:1vh;overflow:hidden;}
+.bim .fill{height:100%;border-radius:1vh;transition:width 0.4s;}
+.bim .stat{width:24vw;display:flex;justify-content:flex-end;gap:1vw;font-size:2vh;}
+.bim .stat .vol{color:#e7d9f5;} .bim .stat .mass{color:#b10dc9;} .bim .stat .pct{color:#fff;width:5vw;text-align:right;}
+.bim .row.crit .fill{animation:pulse 1s infinite;}
+.bim .row.crit .pct{color:#ff007f;text-shadow:0 0 8px #ff007f;}
+@keyframes pulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.6);}}
+.bim .panel{margin:auto;text-align:center;font-size:3vh;color:#ff007f;text-shadow:0 0 10px #ff007f;}
+.bim .footer{font-size:1.8vh;color:#5a3a70;margin-top:1.5vh;}
+</style>
+]]
+
+function M.renderHTML(model)
+  local parts = {}
+  parts[#parts+1] = '<div class="bim"><div class="grid"></div><div class="scanline"></div>'
+  parts[#parts+1] = CSS
+  parts[#parts+1] = '<div class="wrap">'
+  parts[#parts+1] = string.format('<div class="title">%s</div>', esc(model.title))
+
+  if model.error then
+    parts[#parts+1] = string.format('<div class="panel">&#9888; %s</div>', esc(model.error))
+    parts[#parts+1] = '</div></div>'
+    return table.concat(parts)
+  end
+
+  parts[#parts+1] = string.format(
+    '<div class="sub">%d CONTAINERS &bull; BASE FILL %s</div>',
+    model.agg.count, M.formatPct(model.agg.pct))
+
+  -- Base total bar (uses 'ok' coloring scaled by thresholds).
+  local tlevel = M.classifyLevel(model.agg.pct, model.warnPct, model.critPct)
+  local tcolor = LEVEL_COLOR[tlevel]
+  parts[#parts+1] = string.format(
+    '<div class="total"><div class="bar"><div class="fill" style="width:%d%%;background:%s;box-shadow:0 0 12px %s"></div></div></div>',
+    math.floor(model.agg.pct + 0.5), tcolor, tcolor)
+
+  if #model.rows == 0 then
+    parts[#parts+1] = '<div class="panel">No containers linked</div>'
+  else
+    parts[#parts+1] = '<div class="rows">'
+    for _, r in ipairs(model.rows) do
+      parts[#parts+1] = renderRow(M, r, model.warnPct, model.critPct)
+    end
+    parts[#parts+1] = '</div>'
+  end
+
+  parts[#parts+1] = string.format('<div class="footer">SYNC #%d</div>', model.tick or 0)
+  parts[#parts+1] = '</div></div>'
+  return table.concat(parts)
+end
+
 return M

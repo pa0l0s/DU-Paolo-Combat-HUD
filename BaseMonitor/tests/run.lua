@@ -70,5 +70,38 @@ do
   eq("agg empty pct", empty.pct, 0)
 end
 
+do
+  eq("level ok", BIM.classifyLevel(50, 75, 90), "ok")
+  eq("level warn", BIM.classifyLevel(80, 75, 90), "warn")
+  eq("level crit", BIM.classifyLevel(95, 75, 90), "crit")
+
+  local function has(hay, needle) return hay:find(needle, 1, true) ~= nil end
+
+  local model = {
+    title = "BASE INVENTORY",
+    warnPct = 75, critPct = 90, tick = 7,
+    rows = {
+      {label="T1 Ore", vol=750, maxVol=1000, mass=2000, pct=75, ok=true},
+      {label="Glass", vol=0, maxVol=0, mass=0, pct=0, ok=false},
+    },
+    agg = {totalVol=750, totalMax=1000, pct=75, count=1},
+  }
+  local html = BIM.renderHTML(model)
+  check("html has title", has(html, "BASE INVENTORY"))
+  check("html has style", has(html, "<style"))
+  check("html has scanline", has(html, "scanline"))
+  check("html has row label", has(html, "T1 Ore"))
+  check("html has bar width", has(html, "width:75"))
+  check("html has warn color", has(html, "#fffb00"))
+  check("html has offline", has(html, "OFFLINE"))
+  check("html has refresh tick", has(html, "#7"))
+
+  local emptyHtml = BIM.renderHTML({title="X", warnPct=75, critPct=90, tick=1, rows={}, agg={totalVol=0,totalMax=0,pct=0,count=0}})
+  check("empty panel", has(emptyHtml, "No containers linked"))
+
+  local errHtml = BIM.renderHTML({title="X", warnPct=75, critPct=90, tick=1, rows={}, agg={pct=0,count=0,totalVol=0,totalMax=0}, error="CORE not linked"})
+  check("error panel", has(errHtml, "CORE not linked"))
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
