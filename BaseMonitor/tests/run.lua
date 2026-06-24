@@ -129,5 +129,22 @@ do
   check("nil core error panel", s2.last:find("CORE", 1, true) ~= nil)
 end
 
+do
+  S.installGlobals({
+    names = {[21]="T1 Ore", [22]="Glass"},
+    containers = { {vol=500,maxVol=1000,mass=1000,id=21}, {vol=250,maxVol=1000,mass=600,id=22} },
+    exports = { refreshSeconds=8, warnPct=70, critPct=88, sortMode="name", title="MY BASE" },
+  })
+  BIM.start()
+  check("start drew screen", _G.screen.last ~= nil)
+  check("start used title", _G.screen.last:find("MY BASE", 1, true) ~= nil)
+  eq("start set timer", _G.unit._timers["refresh"], 8)
+  eq("tick counter init", BIM._tick, 0)
+
+  BIM.tick()
+  eq("tick increments", BIM._tick, 1)
+  check("tick redrew", _G.screen.last:find("SYNC #1", 1, true) ~= nil)
+end
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

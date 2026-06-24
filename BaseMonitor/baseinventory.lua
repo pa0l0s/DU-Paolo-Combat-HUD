@@ -190,6 +190,44 @@ function M.renderHTML(model)
   return table.concat(parts)
 end
 
+local function buildConfig()
+  return {
+    refreshSeconds = _G.refreshSeconds or 5,
+    warnPct = _G.warnPct or 75,
+    critPct = _G.critPct or 90,
+    sortMode = _G.sortMode or "fill-desc",
+    title = _G.title or "BASE INVENTORY",
+  }
+end
+
+local function gatherSlots()
+  local slots = {}
+  for i = 1, MAX_SLOTS do slots[i] = _G["container" .. i] end
+  return slots
+end
+
+local function env()
+  return {
+    core = _G.core, screen = _G.screen,
+    slots = gatherSlots(), config = M.config, tick = M._tick,
+  }
+end
+
+function M.start()
+  M.config = buildConfig()
+  M._tick = 0
+  M.run(env())
+  if _G.unit and _G.unit.setTimer then
+    _G.unit.setTimer("refresh", M.config.refreshSeconds)
+  end
+end
+
+function M.tick()
+  M.config = M.config or buildConfig()
+  M._tick = (M._tick or 0) + 1
+  M.run(env())
+end
+
 function M.run(env)
   local screen = env.screen
   if not screen then return nil end
