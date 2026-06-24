@@ -11,6 +11,8 @@ function stubs.handle(opts)
     getItemsMass   = function() return opts.mass end,
     getName        = function() return opts.name end,
     getClass       = function() return opts.class or "ItemContainerXL" end,
+    getContent     = function() return opts.content end,
+    updateContent  = function() return 0 end,
   }
 end
 

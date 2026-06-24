@@ -30,6 +30,7 @@ local warnPct = 75 --export: warning threshold percent (yellow bar)
 local critPct = 90 --export: critical threshold percent (pink pulsing bar)
 local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
 local title = "BASE INVENTORY" --export: header title text
+local labelMode = "auto" --export: row label source: auto (items, else name) | items | name
 local bimDebug = true --export: print [BIM] diagnostics to the Lua console
 local bimHud = false --export: also mirror the display to the player HUD (press F on the board; it covers the whole view)
 '@.Trim()
@@ -38,7 +39,7 @@ local bimHud = false --export: also mirror the display to the player HUD (press 
 $banner = "system.print('[BIM] BUILD $build loaded -- this is the latest script')"
 
 # Pass config explicitly (no _G); BIM.start() is the last statement of onStart.
-$bridge = "BIM.start({ refreshSeconds = refreshSeconds, warnPct = warnPct, critPct = critPct, sortMode = sortMode, title = title, debug = bimDebug, hud = bimHud, build = '$build' })"
+$bridge = "BIM.start({ refreshSeconds = refreshSeconds, warnPct = warnPct, critPct = critPct, sortMode = sortMode, title = title, labelMode = labelMode, debug = bimDebug, hud = bimHud, build = '$build' })"
 
 $onStartCode = $banner + "`n`n" + $exports + "`n`n" + $source + "`n`n" + $bridge
 $onTimerCode = 'if timerId == "refresh" then BIM.tick() end'

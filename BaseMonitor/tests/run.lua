@@ -48,6 +48,36 @@ do
 end
 
 do
+  -- itemLabel: build a label from container contents via system.getItem.
+  local db = {
+    [1] = {locDisplayName="Hematite", tier=1},
+    [2] = {locDisplayName="Bauxite", tier=1},
+    [3] = {locDisplayName="Coal", tier=1},
+    [9] = {locDisplayName="Pure Iron", tier=2},
+  }
+  local getItem = function(id) return db[id] end
+
+  eq("itemLabel tier+top2+overflow",
+     BIM.itemLabel({{id=1,quantity=100},{id=2,quantity=50},{id=3,quantity=10}}, getItem),
+     "T1 Hematite, Bauxite +1")
+  eq("itemLabel single", BIM.itemLabel({{id=9,quantity=5}}, getItem), "T2 Pure Iron")
+  eq("itemLabel mixed tier no prefix",
+     BIM.itemLabel({{id=1,quantity=10},{id=9,quantity=5}}, getItem), "Hematite, Pure Iron")
+  eq("itemLabel empty -> nil", BIM.itemLabel({}, getItem), nil)
+  eq("itemLabel no getItem -> nil", BIM.itemLabel({{id=1,quantity=1}}, nil), nil)
+  eq("itemLabel aggregates same id",
+     BIM.itemLabel({{id=1,quantity=30},{id=1,quantity=70}}, getItem), "T1 Hematite")
+
+  -- buildRows uses contents in auto/items mode, custom name in name mode.
+  local cont = S.handle({vol=500, maxVol=1000, mass=900, name="Box A",
+                         content={{id=1,quantity=100},{id=2,quantity=50}}})
+  eq("buildRows auto -> item label",
+     BIM.buildRows({cont}, {getItem=getItem, labelMode="auto"})[1].label, "T1 Hematite, Bauxite")
+  eq("buildRows name -> custom name",
+     BIM.buildRows({cont}, {getItem=getItem, labelMode="name"})[1].label, "Box A")
+end
+
+do
   -- classify() splits linked slot handles into screen + containers by getClass().
   local scr = S.screen()
   local c1  = S.handle({vol=1, maxVol=2, mass=1, name="Ore", class="ItemContainerXL"})

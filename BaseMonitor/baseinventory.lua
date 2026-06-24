@@ -44,13 +44,57 @@ local function handleName(c, idx)
   return label
 end
 
+-- Build a label from a container's actual contents.
+-- content: array of {id, quantity} (from getContent()). getItem(id) -> item table.
+-- Returns nil when there is nothing to name from (so callers can fall back to the
+-- element's own name). Uniform tier is prefixed ("T1 ..."); up to maxShown item
+-- names are listed by quantity, with "+N" for the remainder.
+function M.itemLabel(content, getItem, maxShown)
+  if not content or #content == 0 or not getItem then return nil end
+  maxShown = maxShown or 2
+  local qty, order = {}, {}
+  for _, e in ipairs(content) do
+    local id = e.id or e[1]
+    local q = e.quantity or e[2] or 0
+    if id and id ~= 0 then
+      if not qty[id] then qty[id] = 0; order[#order + 1] = id end
+      qty[id] = qty[id] + q
+    end
+  end
+  if #order == 0 then return nil end
+  local items = {}
+  for _, id in ipairs(order) do
+    local it = getItem(id)
+    local name = it and (it.locDisplayName or it.displayName or it.name) or ("#" .. tostring(id))
+    items[#items + 1] = { name = name, tier = it and it.tier, q = qty[id] }
+  end
+  table.sort(items, function(a, b) return a.q > b.q end)
+  local utier = items[1].tier
+  for _, it in ipairs(items) do if it.tier ~= utier then utier = nil; break end end
+  local shown = {}
+  for i = 1, math.min(maxShown, #items) do shown[#shown + 1] = items[i].name end
+  local label = table.concat(shown, ", ")
+  if #items > maxShown then label = label .. " +" .. (#items - maxShown) end
+  if utier then label = "T" .. tostring(utier) .. " " .. label end
+  return label
+end
+
 -- Read one linked container/hub handle into a row record.
-local function readContainer(c, idx)
-  local label = handleName(c, idx)
+-- opts: { getItem = function(id)->item, labelMode = "auto"|"items"|"name" }
+local function readContainer(c, idx, opts)
+  opts = opts or {}
+  local mode = opts.labelMode or "auto"
+  local label
+  if mode ~= "name" then
+    local content = nil
+    pcall(function() content = c.getContent() end)
+    label = M.itemLabel(content, opts.getItem)
+  end
+  if not label then label = handleName(c, idx) end  -- name mode / fallback
+
   local vol = c.getItemsVolume()
   local maxVol = c.getMaxVolume()
   local mass = c.getItemsMass()
-
   local pct = 0
   if maxVol and maxVol > 0 then pct = (vol / maxVol) * 100 end
   return { label = label, vol = vol or 0, maxVol = maxVol or 0,
@@ -58,13 +102,13 @@ local function readContainer(c, idx)
 end
 
 -- Build rows from an array of container/hub handles (already filtered).
--- Each handle is labelled by its own getName(); a failed read becomes ok=false.
-function M.buildRows(containers)
+-- opts forwarded to readContainer. A failed read becomes ok=false.
+function M.buildRows(containers, opts)
   local rows = {}
   for i = 1, #containers do
     local c = containers[i]
     if c ~= nil then
-      local ok, row = pcall(readContainer, c, i)
+      local ok, row = pcall(readContainer, c, i, opts)
       if ok then
         rows[#rows + 1] = row
       else
@@ -287,51 +331,63 @@ else
   local critPct = tonumber(hdr[6]) or 90
   local tick = hdr[7] or '0'
 
-  setNextShadow(fg, ry * 0.02, 0, 243/255, 1, 1)
+  local padX = rx * 0.045
+
+  -- Title (subtle glow) + sub-line.
+  setNextShadow(fg, ry * 0.007, 0, 243/255, 1, 0.55)
   col(fg, 0, 243, 255, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Top)
-  addText(fg, fTitle, title, pad, ry * 0.035)
+  addText(fg, fTitle, title, padX, ry * 0.045)
 
-  col(fg, 177, 13, 201, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Top)
-  addText(fg, fRow, count .. ' CONTAINERS   BASE FILL ' .. aggPct .. '%', pad, ry * 0.145)
+  col(fg, 177, 13, 201, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Top)
+  addText(fg, fRow, count .. ' CONT  ' .. aggPct .. '%', rx - padX, ry * 0.06)
 
-  local top = ry * 0.23
+  -- Rows: full-width bars with the label + stats drawn OVER the bar.
+  local top = ry * 0.22
+  local bottom = ry * 0.95
   local n = #rows
   if n < 1 then n = 1 end
-  local rowH = (ry * 0.70) / n
-  if rowH > ry * 0.090 then rowH = ry * 0.090 end
-  local barX = rx * 0.30
-  local barW = rx * 0.34
-  local barH = rowH * 0.46
+  local slotH = (bottom - top) / n
+  local barH = slotH * 0.84
+  if barH > ry * 0.085 then barH = ry * 0.085 end
+  local barX, barW = padX, rx - 2 * padX
+  local inset = barH * 0.4
 
   for i = 1, #rows do
     local r = rows[i]
     local label = r[1] or ''
     local pct = tonumber(r[2]) or 0
     local volS, maxS, massS = r[3] or '', r[4] or '', r[5] or ''
-    local cy = top + (i - 1) * rowH + rowH * 0.5
+    local y = top + (i - 1) * slotH
+    local cy = y + barH / 2
+    local rad = barH * 0.22
 
-    col(fg, 0, 243, 255, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Middle)
-    addText(fg, fRow, label, pad, cy)
+    -- empty track
+    col(fg, 255, 255, 255, 0.06)
+    addBoxRounded(fg, barX, y, barW, barH, rad)
 
-    col(fg, 255, 255, 255, 0.08)
-    addBoxRounded(fg, barX, cy - barH / 2, barW, barH, barH / 2)
-
+    -- translucent fill (acts as the text background)
     local cr, cg, cb = 0, 243, 255
     if pct >= critPct then cr, cg, cb = 255, 0, 127
     elseif pct >= warnPct then cr, cg, cb = 255, 251, 0 end
     local w = barW * math.min(pct, 100) / 100
-    if w > 1 then
-      setNextShadow(fg, ry * 0.012, cr/255, cg/255, cb/255, 1)
-      col(fg, cr, cg, cb, 1)
-      addBoxRounded(fg, barX, cy - barH / 2, w, barH, barH / 2)
+    if w > rad * 2 then
+      setNextFillColor(fg, cr/255, cg/255, cb/255, 0.5)
+      addBoxRounded(fg, barX, y, w, barH, rad)
     end
 
-    col(fg, 231, 217, 245, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Middle)
-    addText(fg, fStat, volS .. ' / ' .. maxS .. '   ' .. massS .. '   ' .. pct .. '%', rx - pad, cy)
+    -- label over the bar (left), white with a dark outline for contrast
+    setNextShadow(fg, ry * 0.004, 0, 0, 0, 0.95)
+    col(fg, 255, 255, 255, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Middle)
+    addText(fg, fRow, label, barX + inset, cy)
+
+    -- stats over the bar (right)
+    setNextShadow(fg, ry * 0.004, 0, 0, 0, 0.95)
+    col(fg, 255, 255, 255, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Middle)
+    addText(fg, fStat, pct .. '%   ' .. volS .. ' / ' .. maxS .. '   ' .. massS, barX + barW - inset, cy)
   end
 
   col(fg, 110, 70, 140, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Bottom)
-  addText(fg, fStat, 'SYNC #' .. tick .. '   build ' .. build, rx - pad, ry - ry * 0.02)
+  addText(fg, fStat, 'SYNC #' .. tick .. '   build ' .. build, rx - padX, ry - ry * 0.015)
 end
 ]==]
 
@@ -349,6 +405,7 @@ local function buildConfig(opts)
     critPct = opts.critPct or 90,
     sortMode = opts.sortMode or "fill-desc",
     title = opts.title or "BASE INVENTORY",
+    labelMode = opts.labelMode or "auto",
     debug = debug,
     hud = hud,
     build = opts.build or "dev",
@@ -438,7 +495,31 @@ function M.run(e)
   local warnPct = cfg.warnPct or 75
   local critPct = cfg.critPct or 90
 
-  local rows = M.buildRows(e.containers or {})
+  -- Request a content sync on first run and every ~30s (updateContent is throttled
+  -- to 1/30s; getContent() then returns fresh data on a later tick).
+  local containers = e.containers or {}
+  if e.tick == 0 or (e.tick % 6 == 0) then
+    for _, c in ipairs(containers) do
+      if c.updateContent then pcall(function() c.updateContent() end) end
+    end
+  end
+
+  -- Cached system.getItem (items are static) for content-based labels.
+  M._itemCache = M._itemCache or {}
+  local cache = M._itemCache
+  local function getItem(id)
+    local v = cache[id]
+    if v == nil then
+      local it = nil
+      if system and system.getItem then pcall(function() it = system.getItem(id) end) end
+      cache[id] = it or false
+      v = cache[id]
+    end
+    if v == false then return nil end
+    return v
+  end
+
+  local rows = M.buildRows(containers, { getItem = getItem, labelMode = cfg.labelMode })
   M.sortRows(rows, cfg.sortMode or "fill-desc")
   local agg = M.aggregate(rows)
   local model = {
