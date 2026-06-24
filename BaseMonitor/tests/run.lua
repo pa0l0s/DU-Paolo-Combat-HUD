@@ -27,18 +27,16 @@ eq("pct clamp hi", BIM.formatPct(140), "100%")
 eq("pct clamp lo", BIM.formatPct(-5), "0%")
 
 do
-  local slots = {
-    S.handle({vol=750, maxVol=1000, mass=2000, id=11}), -- 75%
-    nil,                                                  -- unlinked, skipped
-    S.handle({vol=0, maxVol=0, mass=0, id=13}),          -- empty/zero-max guarded
-    S.handle({throw=true, id=14}),                        -- read error -> ok=false
+  -- buildRows takes a dense array of container/hub handles; labels via getName().
+  local containers = {
+    S.handle({vol=750, maxVol=1000, mass=2000, name="T1 Ore"}),  -- 75%
+    S.handle({vol=0, maxVol=0, mass=0, name="Pure T1"}),         -- empty/zero-max guarded
+    S.handle({throw=true, name="Glass"}),                        -- read error -> ok=false
+    S.handle({vol=10, maxVol=100, mass=5, name=nil}),            -- no name -> fallback
   }
-  -- slots has a hole at index 2; build an explicit length-4 array:
-  slots = {slots[1], nil, S.handle({vol=0,maxVol=0,mass=0,id=13}), S.handle({throw=true,id=14})}
-  local getName = S.namer({[11]="T1 Ore", [13]="Pure T1", [14]="Glass"})
-  local rows = BIM.buildRows(slots, getName)
+  local rows = BIM.buildRows(containers)
 
-  eq("rows count (skip nil)", #rows, 3)
+  eq("rows count", #rows, 4)
   eq("row1 label", rows[1].label, "T1 Ore")
   eq("row1 pct", rows[1].pct, 75)
   eq("row1 ok", rows[1].ok, true)
@@ -46,6 +44,23 @@ do
   eq("zero-max ok", rows[2].ok, true)
   eq("error row ok=false", rows[3].ok, false)
   eq("error row label", rows[3].label, "Glass")
+  eq("noname fallback label", rows[4].label, "Container 4")
+end
+
+do
+  -- classify() splits linked slot handles into screen + containers by getClass().
+  local scr = S.screen()
+  local c1  = S.handle({vol=1, maxVol=2, mass=1, name="Ore", class="ItemContainerXL"})
+  local hub = S.handle({vol=1, maxVol=2, mass=1, name="Hub", class="ItemContainerHub"})
+  local sc = BIM.classify({ c1, scr, hub })  -- mixed order (dense)
+  check("classify found screen", sc.screen == scr)
+  eq("classify container count", #sc.containers, 2)
+  eq("classify first container", sc.containers[1].getName(), "Ore")
+  eq("classify hub matched", sc.containers[2].getName(), "Hub")
+
+  local empty = BIM.classify({})
+  check("classify empty screen nil", empty.screen == nil)
+  eq("classify empty containers", #empty.containers, 0)
 end
 
 do
@@ -99,71 +114,77 @@ do
   local emptyHtml = BIM.renderHTML({title="X", warnPct=75, critPct=90, tick=1, rows={}, agg={totalVol=0,totalMax=0,pct=0,count=0}})
   check("empty panel", has(emptyHtml, "No containers linked"))
 
-  local errHtml = BIM.renderHTML({title="X", warnPct=75, critPct=90, tick=1, rows={}, agg={pct=0,count=0,totalVol=0,totalMax=0}, error="CORE not linked"})
-  check("error panel", has(errHtml, "CORE not linked"))
+  local errHtml = BIM.renderHTML({title="X", warnPct=75, critPct=90, tick=1, rows={}, agg={pct=0,count=0,totalVol=0,totalMax=0}, error="SCAN ERROR"})
+  check("error panel", has(errHtml, "SCAN ERROR"))
 end
 
 do
+  -- run(env) with a screen + container list (no core).
   local screen = S.screen()
-  local core = S.core({[11]="T1 Ore", [12]="Pure T1"})
-  local slots = {
-    S.handle({vol=900, maxVol=1000, mass=3000, id=11}),
-    S.handle({vol=100, maxVol=1000, mass=400, id=12}),
+  local containers = {
+    S.handle({vol=900, maxVol=1000, mass=3000, name="T1 Ore"}),
+    S.handle({vol=100, maxVol=1000, mass=400, name="Pure T1"}),
   }
   local cfg = {warnPct=75, critPct=90, sortMode="fill-desc", title="BASE INVENTORY"}
-  local html = BIM.run({core=core, screen=screen, slots=slots, config=cfg, tick=3})
+  local html = BIM.run({screen=screen, containers=containers, config=cfg, tick=3})
 
   local function has(h, n) return h:find(n, 1, true) ~= nil end
   check("run returns html", type(html) == "string")
   check("screen received html", screen.last == html)
-  check("run draws fuller first", has(html, "T1 Ore"))
+  check("run shows container", has(html, "T1 Ore"))
   check("title used", has(html, "BASE INVENTORY"))
+  check("fuller sorted first", html:find("T1 Ore", 1, true) < html:find("Pure T1", 1, true))
 
   -- nil screen -> nil, no crash
-  local none = BIM.run({core=core, screen=nil, slots=slots, config=cfg, tick=1})
+  local none = BIM.run({screen=nil, containers=containers, config=cfg, tick=1})
   check("nil screen -> nil", none == nil)
-
-  -- nil core -> error panel drawn
-  local s2 = S.screen()
-  BIM.run({core=nil, screen=s2, slots=slots, config=cfg, tick=1})
-  check("nil core error panel", s2.last:find("CORE", 1, true) ~= nil)
 end
 
 do
+  -- Bootstrap: install slot globals (mixed screen + containers), run start/tick.
   S.installGlobals({
-    names = {[21]="T1 Ore", [22]="Glass"},
-    containers = { {vol=500,maxVol=1000,mass=1000,id=21}, {vol=250,maxVol=1000,mass=600,id=22} },
+    slots = {
+      S.handle({vol=500, maxVol=1000, mass=1000, name="T1 Ore"}),  -- slot1
+      S.screen(),                                                  -- slot2
+      S.handle({vol=250, maxVol=1000, mass=600, name="Glass"}),    -- slot3
+    },
     exports = { refreshSeconds=8, warnPct=70, critPct=88, sortMode="name", title="MY BASE" },
   })
   BIM.start()
-  check("start drew screen", _G.screen.last ~= nil)
-  check("start used title", _G.screen.last:find("MY BASE", 1, true) ~= nil)
+  local scr = _G.slot2
+  check("start activated screen", scr.activated == true)
+  check("start drew screen", scr.last ~= nil)
+  check("start used title", scr.last:find("MY BASE", 1, true) ~= nil)
+  check("start shows 2 containers", scr.last:find("2 CONTAINERS", 1, true) ~= nil)
+  eq("config picked up export", BIM.config.warnPct, 70)
   eq("start set timer", _G.unit._timers["refresh"], 8)
   eq("tick counter init", BIM._tick, 0)
 
   BIM.tick()
   eq("tick increments", BIM._tick, 1)
-  check("tick redrew", _G.screen.last:find("SYNC #1", 1, true) ~= nil)
+  check("tick redrew", scr.last:find("SYNC #1", 1, true) ~= nil)
 end
 
 do
-  local f = io.open("BaseMonitor/BaseMonitor.conf", "r")
-  check("conf exists", f ~= nil)
+  -- The generated board config.json (paste-into-board format).
+  local f = io.open("BaseMonitor/BaseMonitor.config.json", "r")
+  check("config.json exists", f ~= nil)
   if f then
-    local conf = f:read("*a"); f:close()
+    local j = f:read("*a"); f:close()
     local function has(h, n) return h:find(n, 1, true) ~= nil end
-    check("conf has core slot", has(conf, "class: CoreUnit"))
-    check("conf has screen slot", has(conf, "class: ScreenUnit"))
-    check("conf has container1", has(conf, "container1:"))
-    check("conf has container24", has(conf, "container24:"))
-    check("conf has ItemContainer", has(conf, "class: ItemContainer"))
-    check("conf inlines source", has(conf, "function M.renderHTML"))
-    check("conf calls start", has(conf, "BIM.start()"))
-    check("conf calls tick", has(conf, "BIM.tick()"))
-    check("conf has --export annotation", has(conf, "--export:"))
-    check("conf has export refreshSeconds", has(conf, "local refreshSeconds = 5 --export"))
-    check("conf bridges refreshSeconds to global", has(conf, "_G.refreshSeconds = refreshSeconds"))
-    check("conf bridges title to global", has(conf, "_G.title = title"))
+    check("json has slots", has(j, '"slots"'))
+    check("json has slot1", has(j, '"slot1"'))
+    check("json has slot10", has(j, '"slot10"'))
+    check("json has unit slot", has(j, '"unit"'))
+    check("json has handlers", has(j, '"handlers"'))
+    check("json onStart signature", has(j, "onStart()"))
+    check("json onTimer signature", has(j, "onTimer(timerId)"))
+    check("json inlines source", has(j, "function M.renderHTML"))
+    check("json calls start", has(j, "BIM.start()"))
+    check("json calls tick", has(j, "BIM.tick()"))
+    check("json export refreshSeconds", has(j, "local refreshSeconds = 5 --export"))
+    check("json bridges title", has(j, "_G.title = title"))
+    check("json strips trailing return M", not has(j, "return M"))
   end
 end
 

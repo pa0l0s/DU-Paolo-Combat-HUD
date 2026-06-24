@@ -1,73 +1,74 @@
-# Generates BaseMonitor.conf from baseinventory.lua (single source of truth).
+# Generates BaseMonitor.config.json (Dual Universe programming-board import format)
+# from baseinventory.lua, the single source of truth. Never edit the .json by hand.
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$src  = Get-Content -Raw -Path (Join-Path $here "baseinventory.lua")
+$srcLines = Get-Content -Path (Join-Path $here "baseinventory.lua")
 
-# Strip ONLY the trailing "return M" sentinel (Fix 2: harden strip).
-$srcLines = $src -split "`r?`n"
-# Drop trailing blank lines, then strip the last line if it equals "return M".
-while ($srcLines.Count -gt 0 -and $srcLines[-1].Trim() -eq "") {
-    $srcLines = $srcLines[0..($srcLines.Count - 2)]
+# Strip trailing blank lines, then a trailing `return M` sentinel. The sentinel is
+# required for dofile() in the local tests, but inlined into onStart it would end the
+# chunk before BIM.start() runs.
+$list = [System.Collections.Generic.List[string]]::new()
+$srcLines | ForEach-Object { $list.Add($_) }
+while ($list.Count -gt 0 -and $list[$list.Count - 1].Trim() -eq "") { $list.RemoveAt($list.Count - 1) }
+if ($list.Count -gt 0 -and $list[$list.Count - 1].Trim() -eq "return M") { $list.RemoveAt($list.Count - 1) }
+$source = ($list -join "`n")
+
+# --export tunables (editable in the in-game board panel) declared as locals,
+# then bridged into globals so buildConfig() (which reads _G.*) picks them up.
+$exports = @'
+local refreshSeconds = 5 --export: how often the screen refreshes (seconds)
+local warnPct = 75 --export: warning threshold percent (yellow bar)
+local critPct = 90 --export: critical threshold percent (pink pulsing bar)
+local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
+local title = "BASE INVENTORY" --export: header title text
+'@.Trim()
+
+$bridge = @'
+_G.refreshSeconds = refreshSeconds
+_G.warnPct = warnPct
+_G.critPct = critPct
+_G.sortMode = sortMode
+_G.title = title
+BIM.start()
+'@.Trim()
+
+$onStartCode = $exports + "`n`n" + $source + "`n`n" + $bridge
+$onTimerCode = 'if timerId == "refresh" then BIM.tick() end'
+
+# Slots: indices 0..9 -> slot1..slot10, plus the built-in negative slots.
+$slots = [ordered]@{}
+for ($i = 0; $i -lt 10; $i++) {
+  $slots["$i"] = [ordered]@{ name = "slot$($i + 1)"; type = [ordered]@{ events = @(); methods = @() } }
 }
-if ($srcLines.Count -gt 0 -and $srcLines[-1].Trim() -eq "return M") {
-    $srcLines = $srcLines[0..($srcLines.Count - 2)]
-}
-
-# Indent every source line by 16 spaces to nest under "lua: |".
-$indented = ($srcLines | ForEach-Object { "                " + $_ }) -join "`n"
-
-# Fix 1: five --export local declarations (DU editable tunables).
-$exportLocals = @"
-                local refreshSeconds = 5 --export: how often the screen refreshes (seconds)
-                local warnPct = 75 --export: warning threshold percent (yellow bar)
-                local critPct = 90 --export: critical threshold percent (pink pulsing bar)
-                local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
-                local title = "BASE INVENTORY" --export: header title text
-"@
-
-# Fix 1: bridge that copies export locals into globals so buildConfig() picks them up.
-$bridge = @"
-                _G.refreshSeconds = refreshSeconds
-                _G.warnPct = warnPct
-                _G.critPct = critPct
-                _G.sortMode = sortMode
-                _G.title = title
-                BIM.start()
-"@
-
-$slots = @"
-slots:
-    core:
-        class: CoreUnit
-    screen:
-        class: ScreenUnit
-"@
-for ($i = 1; $i -le 24; $i++) {
-  $slots += @"
-
-    container$i`:
-        class: ItemContainer
-        select: manual
-"@
+$special = [ordered]@{ "-1" = "unit"; "-2" = "construct"; "-3" = "player"; "-4" = "system"; "-5" = "library" }
+foreach ($k in $special.Keys) {
+  $slots["$k"] = [ordered]@{ name = $special[$k]; type = [ordered]@{ events = @(); methods = @() } }
 }
 
-$conf = @"
-name: Base Inventory Monitor (Synthwave)
+# Force single-element args to serialise as a JSON array (not an object).
+$timerArgs = [System.Collections.ArrayList]::new()
+[void]$timerArgs.Add([ordered]@{ variable = "*" })
 
-$slots
-handlers:
-    unit:
-        onStart:
-            lua: |
-$exportLocals
-$indented
-$bridge
-        onTimer:
-            args:
-              - timerId: refresh
-            lua: |
-                BIM.tick()
-"@
+$handlers = @(
+  [ordered]@{
+    code   = $onStartCode
+    filter = [ordered]@{ args = @(); signature = "onStart()"; slotKey = "-1" }
+    key    = "0"
+  },
+  [ordered]@{
+    code   = $onTimerCode
+    filter = [ordered]@{ args = $timerArgs; signature = "onTimer(timerId)"; slotKey = "-1" }
+    key    = "1"
+  }
+)
 
-Set-Content -Path (Join-Path $here "BaseMonitor.conf") -Value $conf -Encoding utf8
-Write-Host "Wrote BaseMonitor.conf"
+$config = [ordered]@{
+  slots    = $slots
+  handlers = $handlers
+  methods  = @()
+  events   = @()
+}
+
+$json = $config | ConvertTo-Json -Depth 16
+Set-Content -Path (Join-Path $here "BaseMonitor.config.json") -Value $json -Encoding utf8
+Write-Host "Wrote BaseMonitor.config.json"

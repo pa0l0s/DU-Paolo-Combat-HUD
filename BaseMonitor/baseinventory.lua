@@ -25,42 +25,66 @@ function M.formatPct(pct)
   return string.format("%d%%", math.floor(pct + 0.5))
 end
 
-local MAX_SLOTS = 24
+local MAX_SLOTS = 10  -- a Programming Board exposes slot1..slot10
 
-local function readContainer(c, getName)
-  local localId = nil
-  pcall(function() localId = c.getLocalId() end)
-  local label = (localId and getName and getName(localId)) or nil
+-- Best-effort in-game name of a linked element handle (Element.getName()).
+local function handleName(c, idx)
+  local label = nil
+  pcall(function() label = c.getName() end)
+  if label == nil or label == "" then label = "Container " .. tostring(idx) end
+  return label
+end
 
+-- Read one linked container/hub handle into a row record.
+local function readContainer(c, idx)
+  local label = handleName(c, idx)
   local vol = c.getItemsVolume()
   local maxVol = c.getMaxVolume()
   local mass = c.getItemsMass()
 
-  if not label then label = "Container " .. tostring(localId or "?") end
   local pct = 0
   if maxVol and maxVol > 0 then pct = (vol / maxVol) * 100 end
   return { label = label, vol = vol or 0, maxVol = maxVol or 0,
            mass = mass or 0, pct = pct, ok = true }
 end
 
-function M.buildRows(slots, getName)
+-- Build rows from an array of container/hub handles (already filtered).
+-- Each handle is labelled by its own getName(); a failed read becomes ok=false.
+function M.buildRows(containers)
   local rows = {}
-  for i = 1, MAX_SLOTS do
-    local c = slots[i]
+  for i = 1, #containers do
+    local c = containers[i]
     if c ~= nil then
-      local ok, row = pcall(readContainer, c, getName)
+      local ok, row = pcall(readContainer, c, i)
       if ok then
         rows[#rows + 1] = row
       else
-        -- Best-effort label even on failure.
-        local localId = nil
-        pcall(function() localId = c.getLocalId() end)
-        local label = (localId and getName and getName(localId)) or ("Container " .. tostring(localId or "?"))
-        rows[#rows + 1] = { label = label, vol = 0, maxVol = 0, mass = 0, pct = 0, ok = false }
+        rows[#rows + 1] = { label = handleName(c, i), vol = 0, maxVol = 0,
+                            mass = 0, pct = 0, ok = false }
       end
     end
   end
   return rows
+end
+
+-- Classify an array of linked slot handles into a screen + container list.
+-- Each handle exposes getClass(); screens match "Screen", containers/hubs match "Container".
+function M.classify(slots)
+  local screen, containers = nil, {}
+  for i = 1, #slots do
+    local s = slots[i]
+    if s ~= nil then
+      local cls = nil
+      pcall(function() cls = s.getClass() end)
+      cls = cls or ""
+      if (not screen) and cls:find("Screen", 1, true) then
+        screen = s
+      elseif cls:find("Container", 1, true) then
+        containers[#containers + 1] = s
+      end
+    end
+  end
+  return { screen = screen, containers = containers }
 end
 
 function M.sortRows(rows, mode)
@@ -200,23 +224,32 @@ local function buildConfig()
   }
 end
 
+-- Read the board's linkable slots (slot1..slot10) from the global env,
+-- returning a dense array (nil/unlinked slots dropped) so # is reliable.
 local function gatherSlots()
   local slots = {}
-  for i = 1, MAX_SLOTS do slots[i] = _G["container" .. i] end
+  for i = 1, MAX_SLOTS do
+    local s = _G["slot" .. i]
+    if s ~= nil then slots[#slots + 1] = s end
+  end
   return slots
 end
 
+-- Build the current run environment by scanning + classifying the slots.
 local function env()
-  return {
-    core = _G.core, screen = _G.screen,
-    slots = gatherSlots(), config = M.config, tick = M._tick,
-  }
+  local sc = M.classify(gatherSlots())
+  return { screen = sc.screen, containers = sc.containers,
+           config = M.config, tick = M._tick }
 end
 
 function M.start()
   M.config = buildConfig()
   M._tick = 0
-  M.run(env())
+  local e = env()
+  if e.screen and e.screen.activate then
+    pcall(function() e.screen.activate() end)
+  end
+  M.run(e)
   if _G.unit and _G.unit.setTimer then
     _G.unit.setTimer("refresh", M.config.refreshSeconds)
   end
@@ -228,30 +261,19 @@ function M.tick()
   M.run(env())
 end
 
-function M.run(env)
-  local screen = env.screen
+function M.run(e)
+  local screen = e.screen
   if not screen then return nil end
-  local cfg = env.config or {}
+  local cfg = e.config or {}
   local title = cfg.title or "BASE INVENTORY"
   local warnPct = cfg.warnPct or 75
   local critPct = cfg.critPct or 90
 
-  if not env.core then
-    local html = M.renderHTML({
-      title = title, warnPct = warnPct, critPct = critPct, tick = env.tick or 0,
-      rows = {}, agg = {totalVol=0, totalMax=0, pct=0, count=0},
-      error = "CORE not linked",
-    })
-    screen.setHTML(html)
-    return html
-  end
-
-  local getName = function(id) return env.core.getElementNameById(id) end
-  local rows = M.buildRows(env.slots or {}, getName)
+  local rows = M.buildRows(e.containers or {})
   M.sortRows(rows, cfg.sortMode or "fill-desc")
   local agg = M.aggregate(rows)
   local html = M.renderHTML({
-    title = title, warnPct = warnPct, critPct = critPct, tick = env.tick or 0,
+    title = title, warnPct = warnPct, critPct = critPct, tick = e.tick or 0,
     rows = rows, agg = agg,
   })
   screen.setHTML(html)
