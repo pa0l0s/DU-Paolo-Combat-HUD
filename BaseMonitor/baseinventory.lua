@@ -257,9 +257,9 @@ M.RENDER_SCRIPT = [==[
 local rx, ry = getResolution()
 local bg = createLayer()
 local fg = createLayer()
-local fTitle = loadFont('Play-Bold', math.floor(ry * 0.06))
-local fRow   = loadFont('Play', math.floor(ry * 0.030))
-local fStat  = loadFont('RobotoMono', math.floor(ry * 0.024))
+local fTitle = loadFont('Play-Bold', math.floor(ry * 0.080))
+local fRow   = loadFont('Play', math.floor(ry * 0.042))
+local fStat  = loadFont('RobotoMono', math.floor(ry * 0.034))
 local function col(l, r, g, b, a) setNextFillColor(l, r/255, g/255, b/255, a or 1) end
 
 col(bg, 13, 2, 17, 1); addBox(bg, 0, 0, rx, ry)
@@ -292,15 +292,15 @@ else
   addText(fg, fTitle, title, pad, ry * 0.035)
 
   col(fg, 177, 13, 201, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Top)
-  addText(fg, fStat, count .. ' CONTAINERS   BASE FILL ' .. aggPct .. '%', pad, ry * 0.135)
+  addText(fg, fRow, count .. ' CONTAINERS   BASE FILL ' .. aggPct .. '%', pad, ry * 0.145)
 
-  local top = ry * 0.21
+  local top = ry * 0.23
   local n = #rows
   if n < 1 then n = 1 end
-  local rowH = (ry * 0.72) / n
-  if rowH > ry * 0.075 then rowH = ry * 0.075 end
-  local barX = rx * 0.27
-  local barW = rx * 0.44
+  local rowH = (ry * 0.70) / n
+  if rowH > ry * 0.090 then rowH = ry * 0.090 end
+  local barX = rx * 0.30
+  local barW = rx * 0.34
   local barH = rowH * 0.46
 
   for i = 1, #rows do
