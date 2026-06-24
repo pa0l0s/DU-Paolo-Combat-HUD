@@ -155,6 +155,10 @@ end
 local function readContainer(c, idx, opts)
   opts = opts or {}
   local mode = opts.labelMode or "auto"
+  -- Request a content sync each render (updateContent is throttled to 1/30s
+  -- internally, so calling more often is harmless and keeps it fresh).
+  local wait
+  if c.updateContent then pcall(function() wait = c.updateContent() end) end
   local label, stacks = nil, 0
   if mode ~= "name" then
     local content = nil
@@ -170,8 +174,8 @@ local function readContainer(c, idx, opts)
   end
   local nm = handleName(c, idx)
   if not label then label = nm end  -- name mode / fallback
-  if (M._tick or 0) <= 1 then
-    dbg(string.format("box '%s': %d stacks -> '%s'", nm, stacks, label))
+  if (M._tick or 0) <= 6 then
+    dbg(string.format("box '%s': %d stacks, updWait=%s -> '%s'", nm, stacks, tostring(wait), label))
   end
 
   local vol = c.getItemsVolume()
@@ -577,14 +581,7 @@ function M.run(e)
   local warnPct = cfg.warnPct or 75
   local critPct = cfg.critPct or 90
 
-  -- Request a content sync on first run and every ~30s (updateContent is throttled
-  -- to 1/30s; getContent() then returns fresh data on a later tick).
   local containers = e.containers or {}
-  if e.tick == 0 or (e.tick % 6 == 0) then
-    for _, c in ipairs(containers) do
-      if c.updateContent then pcall(function() c.updateContent() end) end
-    end
-  end
 
   -- Cached system.getItem (items are static) for content-based labels.
   M._itemCache = M._itemCache or {}
