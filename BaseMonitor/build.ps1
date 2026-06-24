@@ -31,7 +31,7 @@ local critPct = 90 --export: critical threshold percent (pink pulsing bar)
 local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
 local title = "BASE INVENTORY" --export: header title text
 local bimDebug = true --export: print [BIM] diagnostics to the Lua console
-local bimHud = true --export: also mirror the display to the player HUD (press F on the board)
+local bimHud = false --export: also mirror the display to the player HUD (press F on the board; it covers the whole view)
 '@.Trim()
 
 # Printed FIRST, before anything else, so the Lua console shows the running build.

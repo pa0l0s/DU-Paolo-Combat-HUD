@@ -14,12 +14,14 @@ function stubs.handle(opts)
   }
 end
 
--- A fake screen handle.
+-- A fake screen handle (render-script API + legacy setHTML).
 function stubs.screen()
-  local self = { last = nil, activated = false }
-  self.setHTML  = function(h) self.last = h end
-  self.activate = function() self.activated = true end
-  self.getClass = function() return "ScreenUnit" end
+  local self = { html = nil, rs = nil, input = nil, activated = false }
+  self.setHTML         = function(h) self.html = h end
+  self.setRenderScript = function(s) self.rs = s end
+  self.setScriptInput  = function(i) self.input = i end
+  self.activate        = function() self.activated = true end
+  self.getClass        = function() return "ScreenUnit" end
   return self
 end
 

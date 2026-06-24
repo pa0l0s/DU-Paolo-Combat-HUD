@@ -225,6 +225,116 @@ function M.renderHTML(model)
   return table.concat(parts)
 end
 
+-- ===== Screen render-script path (setHTML is deprecated on DU screens) =====
+-- Encode the model as a tab/newline string fed to the render script via setScriptInput.
+-- Header line: title \t build \t aggPct \t count \t warnPct \t critPct \t tick
+-- Row lines:   label \t pct \t volStr \t maxStr \t massStr
+local function san(s) return (tostring(s or ""):gsub("[\t\n]", " ")) end
+
+function M.buildScreenData(model)
+  local lines = {}
+  lines[1] = table.concat({
+    san(model.title), san(model.build or "dev"), tostring(math.floor((model.agg.pct or 0) + 0.5)),
+    tostring(model.agg.count or 0), tostring(model.warnPct or 75),
+    tostring(model.critPct or 90), tostring(model.tick or 0),
+  }, "\t")
+  for _, r in ipairs(model.rows) do
+    if r.ok then
+      lines[#lines + 1] = table.concat({
+        san(r.label), tostring(math.floor((r.pct or 0) + 0.5)),
+        M.formatVolume(r.vol), M.formatVolume(r.maxVol), M.formatMass(r.mass),
+      }, "\t")
+    else
+      lines[#lines + 1] = table.concat({ san(r.label), "0", "OFFLINE", "", "" }, "\t")
+    end
+  end
+  return table.concat(lines, "\n")
+end
+
+-- The render script that runs ON the screen. Reads getInput() (the string above),
+-- draws the synthwave UI with the screen render API. Kept as a string constant.
+M.RENDER_SCRIPT = [==[
+local rx, ry = getResolution()
+local bg = createLayer()
+local fg = createLayer()
+local fTitle = loadFont('Play-Bold', math.floor(ry * 0.06))
+local fRow   = loadFont('Play', math.floor(ry * 0.030))
+local fStat  = loadFont('RobotoMono', math.floor(ry * 0.024))
+local function col(l, r, g, b, a) setNextFillColor(l, r/255, g/255, b/255, a or 1) end
+
+col(bg, 13, 2, 17, 1); addBox(bg, 0, 0, rx, ry)
+
+local input = getInput() or ''
+local hdr, rows = nil, {}
+for line in (input .. '\n'):gmatch('(.-)\n') do
+  if line ~= '' then
+    local f = {}
+    for fld in (line .. '\t'):gmatch('(.-)\t') do f[#f + 1] = fld end
+    if not hdr then hdr = f else rows[#rows + 1] = f end
+  end
+end
+
+local pad = rx * 0.04
+if not hdr then
+  col(fg, 255, 0, 127, 1); setNextTextAlign(fg, AlignH_Center, AlignV_Middle)
+  addText(fg, fTitle, 'BASE INVENTORY -- no data', rx / 2, ry / 2)
+else
+  local title = hdr[1] or 'BASE INVENTORY'
+  local build = hdr[2] or ''
+  local aggPct = tonumber(hdr[3]) or 0
+  local count = hdr[4] or '0'
+  local warnPct = tonumber(hdr[5]) or 75
+  local critPct = tonumber(hdr[6]) or 90
+  local tick = hdr[7] or '0'
+
+  setNextShadow(fg, ry * 0.02, 0, 243/255, 1, 1)
+  col(fg, 0, 243, 255, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Top)
+  addText(fg, fTitle, title, pad, ry * 0.035)
+
+  col(fg, 177, 13, 201, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Top)
+  addText(fg, fStat, count .. ' CONTAINERS   BASE FILL ' .. aggPct .. '%', pad, ry * 0.135)
+
+  local top = ry * 0.21
+  local n = #rows
+  if n < 1 then n = 1 end
+  local rowH = (ry * 0.72) / n
+  if rowH > ry * 0.075 then rowH = ry * 0.075 end
+  local barX = rx * 0.27
+  local barW = rx * 0.44
+  local barH = rowH * 0.46
+
+  for i = 1, #rows do
+    local r = rows[i]
+    local label = r[1] or ''
+    local pct = tonumber(r[2]) or 0
+    local volS, maxS, massS = r[3] or '', r[4] or '', r[5] or ''
+    local cy = top + (i - 1) * rowH + rowH * 0.5
+
+    col(fg, 0, 243, 255, 1); setNextTextAlign(fg, AlignH_Left, AlignV_Middle)
+    addText(fg, fRow, label, pad, cy)
+
+    col(fg, 255, 255, 255, 0.08)
+    addBoxRounded(fg, barX, cy - barH / 2, barW, barH, barH / 2)
+
+    local cr, cg, cb = 0, 243, 255
+    if pct >= critPct then cr, cg, cb = 255, 0, 127
+    elseif pct >= warnPct then cr, cg, cb = 255, 251, 0 end
+    local w = barW * math.min(pct, 100) / 100
+    if w > 1 then
+      setNextShadow(fg, ry * 0.012, cr/255, cg/255, cb/255, 1)
+      col(fg, cr, cg, cb, 1)
+      addBoxRounded(fg, barX, cy - barH / 2, w, barH, barH / 2)
+    end
+
+    col(fg, 231, 217, 245, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Middle)
+    addText(fg, fStat, volS .. ' / ' .. maxS .. '   ' .. massS .. '   ' .. pct .. '%', rx - pad, cy)
+  end
+
+  col(fg, 110, 70, 140, 1); setNextTextAlign(fg, AlignH_Right, AlignV_Bottom)
+  addText(fg, fStat, 'SYNC #' .. tick .. '   build ' .. build, rx - pad, ry - ry * 0.02)
+end
+]==]
+
 -- Config comes from explicit options (passed to start), never from globals --
 -- DU's global table does not carry our values reliably.
 local function buildConfig(opts)
@@ -232,7 +342,7 @@ local function buildConfig(opts)
   local debug = opts.debug
   if debug == nil then debug = true end
   local hud = opts.hud
-  if hud == nil then hud = true end
+  if hud == nil then hud = false end
   return {
     refreshSeconds = opts.refreshSeconds or 5,
     warnPct = opts.warnPct or 75,
@@ -295,16 +405,19 @@ function M.start(opts)
   local e = env()
   dbg(string.format("detected: screen=%s containers=%d",
       e.screen and "OK" or "MISSING", #e.containers))
-  if e.screen and e.screen.activate then
-    pcall(function() e.screen.activate() end)
-    dbg("screen.activate() called")
+  if e.screen then
+    if e.screen.activate then pcall(function() e.screen.activate() end) end
+    if e.screen.setRenderScript then
+      pcall(function() e.screen.setRenderScript(M.RENDER_SCRIPT) end)
+      dbg("screen.setRenderScript() installed")
+    end
   end
   if M.config.hud and system and system.showScreen then
     pcall(function() system.showScreen(1) end)
     dbg("system.showScreen(1) called (HUD mirror)")
   end
-  local html = M.run(e)
-  dbg("run -> html len=" .. (html and #html or "nil"))
+  local data = M.run(e)
+  dbg("run -> data len=" .. (data and #data or "nil"))
   if unit and unit.setTimer then
     unit.setTimer("refresh", M.config.refreshSeconds)
     dbg("timer 'refresh' set to " .. tostring(M.config.refreshSeconds) .. "s")
@@ -315,8 +428,8 @@ end
 function M.tick()
   M.config = M.config or buildConfig()
   M._tick = (M._tick or 0) + 1
-  local html = M.run(env())
-  dbg("tick #" .. M._tick .. " -> html len=" .. (html and #html or "nil"))
+  local data = M.run(env())
+  dbg("tick #" .. M._tick .. " -> data len=" .. (data and #data or "nil"))
 end
 
 function M.run(e)
@@ -328,20 +441,21 @@ function M.run(e)
   local rows = M.buildRows(e.containers or {})
   M.sortRows(rows, cfg.sortMode or "fill-desc")
   local agg = M.aggregate(rows)
-  local html = M.renderHTML({
+  local model = {
     title = title, warnPct = warnPct, critPct = critPct, tick = e.tick or 0,
     rows = rows, agg = agg, build = cfg.build,
-  })
+  }
 
-  -- Push to a linked Screen element if one is present.
-  if e.screen and e.screen.setHTML then
-    pcall(function() e.screen.setHTML(html) end)
+  -- Screen: feed data to the render script (setHTML is deprecated on DU screens).
+  local data = M.buildScreenData(model)
+  if e.screen and e.screen.setScriptInput then
+    pcall(function() e.screen.setScriptInput(data) end)
   end
-  -- Mirror to the player HUD (visible when running the board explicitly with F).
+  -- HUD mirror (HTML) -- optional, off by default (it covers the whole view).
   if cfg.hud and system and system.setScreen then
-    pcall(function() system.setScreen(html) end)
+    pcall(function() system.setScreen(M.renderHTML(model)) end)
   end
-  return html
+  return data
 end
 
 return M

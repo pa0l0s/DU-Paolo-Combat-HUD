@@ -126,18 +126,39 @@ do
     S.handle({vol=100, maxVol=1000, mass=400, name="Pure T1"}),
   }
   local cfg = {warnPct=75, critPct=90, sortMode="fill-desc", title="BASE INVENTORY"}
-  local html = BIM.run({screen=screen, containers=containers, config=cfg, tick=3})
+  local data = BIM.run({screen=screen, containers=containers, config=cfg, tick=3})
 
   local function has(h, n) return h:find(n, 1, true) ~= nil end
-  check("run returns html", type(html) == "string")
-  check("screen received html", screen.last == html)
-  check("run shows container", has(html, "T1 Ore"))
-  check("title used", has(html, "BASE INVENTORY"))
-  check("fuller sorted first", html:find("T1 Ore", 1, true) < html:find("Pure T1", 1, true))
+  check("run returns data", type(data) == "string")
+  check("screen got scriptInput", screen.input == data)
+  check("data has container", has(data, "T1 Ore"))
+  check("data has title", has(data, "BASE INVENTORY"))
+  check("fuller sorted first", data:find("T1 Ore", 1, true) < data:find("Pure T1", 1, true))
 
-  -- no screen still renders + returns html (HUD-only path), no crash
-  local h2 = BIM.run({screen=nil, containers=containers, config={hud=false}, tick=1})
-  check("no screen still returns html", type(h2) == "string")
+  -- no screen still renders + returns data (no crash)
+  local d2 = BIM.run({screen=nil, containers=containers, config={hud=false}, tick=1})
+  check("no screen still returns data", type(d2) == "string")
+end
+
+do
+  -- buildScreenData: header + per-row tab/newline encoding.
+  local model = {
+    title="BASE", build="b9", warnPct=75, critPct=90, tick=4,
+    agg={pct=50, count=2, totalVol=0, totalMax=0},
+    rows={
+      {label="T1 Ore", vol=750, maxVol=1000, mass=2000, pct=75, ok=true},
+      {label="Glass", vol=0, maxVol=0, mass=0, pct=0, ok=false},
+    },
+  }
+  local d = BIM.buildScreenData(model)
+  local hdr = d:match("^(.-)\n")
+  local fields = {}
+  for f in (hdr.."\t"):gmatch("(.-)\t") do fields[#fields+1]=f end
+  eq("hdr title", fields[1], "BASE")
+  eq("hdr build", fields[2], "b9")
+  eq("hdr count", fields[4], "2")
+  check("row has formatted volume", d:find("750 L", 1, true) ~= nil)
+  check("offline row encoded", d:find("OFFLINE", 1, true) ~= nil)
 end
 
 do
@@ -153,19 +174,21 @@ do
               title="MY BASE", build="t-1", hud=true })
   local scr = _G.slot2
   check("start activated screen", scr.activated == true)
-  check("start drew screen", scr.last ~= nil)
-  check("start used title", scr.last:find("MY BASE", 1, true) ~= nil)
-  check("start shows 2 containers", scr.last:find("2 CONTAINERS", 1, true) ~= nil)
+  check("start installed render script", scr.rs ~= nil)
+  check("render script uses screen API", scr.rs and scr.rs:find("getResolution", 1, true) ~= nil)
+  check("start fed scriptInput", scr.input ~= nil)
+  check("data has title", scr.input and scr.input:find("MY BASE", 1, true) ~= nil)
+  check("data has build", scr.input and scr.input:find("t-1", 1, true) ~= nil)
   check("HUD mirror set", _G.system._hud ~= nil)
   check("HUD shown", _G.system._shown == true)
-  check("footer build shown", scr.last:find("build t-1", 1, true) ~= nil)
   eq("config from opts", BIM.config.warnPct, 70)
   eq("start set timer", _G.unit._timers["refresh"], 8)
   eq("tick counter init", BIM._tick, 0)
 
+  local before = scr.input
   BIM.tick()
   eq("tick increments", BIM._tick, 1)
-  check("tick redrew", scr.last:find("SYNC #1", 1, true) ~= nil)
+  check("tick refreshed data", scr.input ~= before)
 end
 
 do
