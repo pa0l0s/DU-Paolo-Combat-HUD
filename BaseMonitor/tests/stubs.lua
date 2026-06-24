@@ -23,19 +23,20 @@ function stubs.screen()
   return self
 end
 
--- Installs fake DU globals (slot1..slotN, system, unit, exports) for bootstrap tests.
--- spec: {
---   slots   = { handle|screen, ... }   -- linked into slot1..slotN in order
---   exports = { refreshSeconds=.., warnPct=.., ... }
--- }
+-- Installs fake DU globals (slot1..slotN, system, unit) for bootstrap tests.
+-- In standard Lua _G == _ENV, so setting _G.slotN also makes the bare global slotN
+-- resolve -- matching how the shipped code reads slots by direct name.
+-- spec: { slots = { handle|screen, ... } }  -- linked into slot1..slotN in order
 function stubs.installGlobals(spec)
-  _G.system = { print = function() end }
+  _G.system = {
+    print = function() end,
+    _hud = nil, _shown = false,
+    setScreen = function(h) _G.system._hud = h end,
+    showScreen = function(b) _G.system._shown = true end,
+  }
   _G.unit = { _timers = {}, setTimer = function(tag, s) _G.unit._timers[tag] = s end }
   for i = 1, 10 do _G["slot" .. i] = nil end
   for i, s in ipairs(spec.slots or {}) do _G["slot" .. i] = s end
-  -- Clear any stale export globals from a previous install, then apply.
-  for _, k in ipairs({"refreshSeconds","warnPct","critPct","sortMode","title"}) do _G[k] = nil end
-  for k, v in pairs(spec.exports or {}) do _G[k] = v end
 end
 
 return stubs

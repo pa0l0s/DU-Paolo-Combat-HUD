@@ -13,32 +13,32 @@ while ($list.Count -gt 0 -and $list[$list.Count - 1].Trim() -eq "") { $list.Remo
 if ($list.Count -gt 0 -and $list[$list.Count - 1].Trim() -eq "return M") { $list.RemoveAt($list.Count - 1) }
 $source = ($list -join "`n")
 
+# Incrementing build number (shared with screentest via .buildno) so you can confirm
+# in-game which version is actually loaded.
+$bnFile = Join-Path $here ".buildno"
+$bn = 0
+if (Test-Path $bnFile) { $bn = [int]((Get-Content -Raw $bnFile).Trim()) }
+$bn = $bn + 1
+Set-Content -Path $bnFile -Value $bn -Encoding ascii
+$build = "$bn ($(Get-Date -Format 'HH:mm:ss'))"
+
 # --export tunables (editable in the in-game board panel) declared as locals,
-# then bridged into globals so buildConfig() (which reads _G.*) picks them up.
+# then passed explicitly into BIM.start{} (DU's _G does not carry our values).
 $exports = @'
 local refreshSeconds = 5 --export: how often the screen refreshes (seconds)
 local warnPct = 75 --export: warning threshold percent (yellow bar)
 local critPct = 90 --export: critical threshold percent (pink pulsing bar)
 local sortMode = "fill-desc" --export: fill-desc | fill-asc | name | none
 local title = "BASE INVENTORY" --export: header title text
-local bimDebug = true --export: print [BIM] diagnostics to the Lua console / game log
+local bimDebug = true --export: print [BIM] diagnostics to the Lua console
+local bimHud = true --export: also mirror the display to the player HUD (press F on the board)
 '@.Trim()
-
-# A build stamp so you can confirm in-game which version is actually loaded.
-$stamp = (Get-Date).ToString("yyyy-MM-dd_HH:mm:ss")
 
 # Printed FIRST, before anything else, so the Lua console shows the running build.
-$banner = "system.print('[BIM] build $stamp loaded -- this is the latest script')"
+$banner = "system.print('[BIM] BUILD $build loaded -- this is the latest script')"
 
-$bridge = @'
-_G.refreshSeconds = refreshSeconds
-_G.warnPct = warnPct
-_G.critPct = critPct
-_G.sortMode = sortMode
-_G.title = title
-_G.bimDebug = bimDebug
-'@.Trim()
-$bridge = $bridge + "`n_G.bimBuild = '$stamp'`nBIM.start()"
+# Pass config explicitly (no _G); BIM.start() is the last statement of onStart.
+$bridge = "BIM.start({ refreshSeconds = refreshSeconds, warnPct = warnPct, critPct = critPct, sortMode = sortMode, title = title, debug = bimDebug, hud = bimHud, build = '$build' })"
 
 $onStartCode = $banner + "`n`n" + $exports + "`n`n" + $source + "`n`n" + $bridge
 $onTimerCode = 'if timerId == "refresh" then BIM.tick() end'

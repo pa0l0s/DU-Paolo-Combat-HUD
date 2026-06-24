@@ -5,10 +5,12 @@ local M = BIM
 
 -- Debug logging to the board console / game log (grep the log for "[BIM]").
 -- Toggle off with the `debug` export.
+-- NOTE: in DU, injected globals (system, unit, slot1..slot10) must be referenced
+-- directly by name, not through the global table -- so we do that everywhere below.
 local function dbg(msg)
   if M.debug == false then return end
-  if _G.system and _G.system.print then
-    _G.system.print("[BIM] " .. tostring(msg))
+  if system and system.print then
+    system.print("[BIM] " .. tostring(msg))
   end
 end
 
@@ -223,27 +225,41 @@ function M.renderHTML(model)
   return table.concat(parts)
 end
 
-local function buildConfig()
-  local debug = _G.bimDebug
+-- Config comes from explicit options (passed to start), never from globals --
+-- DU's global table does not carry our values reliably.
+local function buildConfig(opts)
+  opts = opts or {}
+  local debug = opts.debug
   if debug == nil then debug = true end
+  local hud = opts.hud
+  if hud == nil then hud = true end
   return {
-    refreshSeconds = _G.refreshSeconds or 5,
-    warnPct = _G.warnPct or 75,
-    critPct = _G.critPct or 90,
-    sortMode = _G.sortMode or "fill-desc",
-    title = _G.title or "BASE INVENTORY",
+    refreshSeconds = opts.refreshSeconds or 5,
+    warnPct = opts.warnPct or 75,
+    critPct = opts.critPct or 90,
+    sortMode = opts.sortMode or "fill-desc",
+    title = opts.title or "BASE INVENTORY",
     debug = debug,
-    build = _G.bimBuild or "dev",
+    hud = hud,
+    build = opts.build or "dev",
   }
 end
 
--- Read the board's linkable slots (slot1..slot10) from the global env,
--- returning a dense array (nil/unlinked slots dropped) so # is reliable.
+-- The board's link slots are DIRECT globals (slot1..slot10) referenced by name.
+-- Undefined ones read as nil (no error).
+local function rawSlots()
+  local t = {}
+  t[1] = slot1; t[2] = slot2; t[3] = slot3; t[4] = slot4; t[5] = slot5
+  t[6] = slot6; t[7] = slot7; t[8] = slot8; t[9] = slot9; t[10] = slot10
+  return t
+end
+
+-- Dense array of linked slots (nil/unlinked dropped) so # is reliable.
 local function gatherSlots()
+  local raw = rawSlots()
   local slots = {}
   for i = 1, MAX_SLOTS do
-    local s = _G["slot" .. i]
-    if s ~= nil then slots[#slots + 1] = s end
+    if raw[i] ~= nil then slots[#slots + 1] = raw[i] end
   end
   return slots
 end
@@ -257,8 +273,9 @@ end
 
 -- Print the class + name reported by every linked slot (diagnostics).
 local function dumpSlots()
+  local raw = rawSlots()
   for i = 1, MAX_SLOTS do
-    local s = _G["slot" .. i]
+    local s = raw[i]
     if s ~= nil then
       local cls, nm = "?", "?"
       pcall(function() cls = tostring(s.getClass()) end)
@@ -268,8 +285,8 @@ local function dumpSlots()
   end
 end
 
-function M.start()
-  M.config = buildConfig()
+function M.start(opts)
+  M.config = buildConfig(opts)
   M.debug = M.config.debug
   M._tick = 0
   dbg("===== Base Inventory Monitor build " .. tostring(M.config.build) .. " =====")
@@ -282,10 +299,14 @@ function M.start()
     pcall(function() e.screen.activate() end)
     dbg("screen.activate() called")
   end
+  if M.config.hud and system and system.showScreen then
+    pcall(function() system.showScreen(1) end)
+    dbg("system.showScreen(1) called (HUD mirror)")
+  end
   local html = M.run(e)
-  dbg("run -> setHTML len=" .. (html and #html or "nil (no screen)"))
-  if _G.unit and _G.unit.setTimer then
-    _G.unit.setTimer("refresh", M.config.refreshSeconds)
+  dbg("run -> html len=" .. (html and #html or "nil"))
+  if unit and unit.setTimer then
+    unit.setTimer("refresh", M.config.refreshSeconds)
     dbg("timer 'refresh' set to " .. tostring(M.config.refreshSeconds) .. "s")
   end
   dbg("onStart done")
@@ -295,12 +316,10 @@ function M.tick()
   M.config = M.config or buildConfig()
   M._tick = (M._tick or 0) + 1
   local html = M.run(env())
-  dbg("tick #" .. M._tick .. " -> setHTML len=" .. (html and #html or "nil"))
+  dbg("tick #" .. M._tick .. " -> html len=" .. (html and #html or "nil"))
 end
 
 function M.run(e)
-  local screen = e.screen
-  if not screen then return nil end
   local cfg = e.config or {}
   local title = cfg.title or "BASE INVENTORY"
   local warnPct = cfg.warnPct or 75
@@ -313,7 +332,15 @@ function M.run(e)
     title = title, warnPct = warnPct, critPct = critPct, tick = e.tick or 0,
     rows = rows, agg = agg, build = cfg.build,
   })
-  screen.setHTML(html)
+
+  -- Push to a linked Screen element if one is present.
+  if e.screen and e.screen.setHTML then
+    pcall(function() e.screen.setHTML(html) end)
+  end
+  -- Mirror to the player HUD (visible when running the board explicitly with F).
+  if cfg.hud and system and system.setScreen then
+    pcall(function() system.setScreen(html) end)
+  end
   return html
 end
 

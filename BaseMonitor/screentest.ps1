@@ -3,13 +3,22 @@
 # has setHTML(), and prints detailed [BIMTEST] diagnostics to the Lua console.
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$stamp = (Get-Date).ToString("yyyy-MM-dd_HH:mm:ss")
+$bnFile = Join-Path $here ".buildno"
+$bn = 0
+if (Test-Path $bnFile) { $bn = [int]((Get-Content -Raw $bnFile).Trim()) }
+$bn = $bn + 1
+Set-Content -Path $bnFile -Value $bn -Encoding ascii
+$stamp = "$bn ($(Get-Date -Format 'HH:mm:ss'))"
 
 $onStart = @'
-system.print('[BIMTEST] build {STAMP} onStart begin')
+system.print('[BIMTEST] BUILD {STAMP} onStart begin')
+-- DU link slots are DIRECT globals (slot1..slot10), NOT members of _G.
+local slots = {}
+slots[1]=slot1 slots[2]=slot2 slots[3]=slot3 slots[4]=slot4 slots[5]=slot5
+slots[6]=slot6 slots[7]=slot7 slots[8]=slot8 slots[9]=slot9 slots[10]=slot10
 local screens = 0
 for i = 1, 10 do
-  local s = _G['slot' .. i]
+  local s = slots[i]
   if s ~= nil then
     local cls = '?'; pcall(function() cls = tostring(s.getClass()) end)
     local nm  = '?'; pcall(function() nm  = tostring(s.getName()) end)
@@ -32,13 +41,22 @@ for i = 1, 10 do
 end
 system.print('[BIMTEST] screens written = ' .. screens)
 if screens == 0 then system.print('[BIMTEST] NO element with setHTML found -- is a Screen linked?') end
+-- Also mirror to the HUD (works when you run the board with F).
+if system.setScreen then
+  pcall(function() system.showScreen(1) end)
+  pcall(function() system.setScreen("<div style='color:#fffb00;background:#0d0211;font-family:monospace;font-size:50px;padding:40px'>BIMTEST HUD build {STAMP}</div>") end)
+  system.print('[BIMTEST] HUD setScreen attempted')
+end
 if unit and unit.setTimer then unit.setTimer('t', 2) end
 '@.Replace('{STAMP}', $stamp)
 
 $onTimer = @'
+local slots = {}
+slots[1]=slot1 slots[2]=slot2 slots[3]=slot3 slots[4]=slot4 slots[5]=slot5
+slots[6]=slot6 slots[7]=slot7 slots[8]=slot8 slots[9]=slot9 slots[10]=slot10
 local n = 0
 for i = 1, 10 do
-  local s = _G['slot' .. i]
+  local s = slots[i]
   if s ~= nil and type(s.setHTML) == 'function' then
     pcall(function() if s.activate then s.activate() end end)
     local html = "<div style='width:100%;height:100%;background:#120136;color:#fffb00;font-family:monospace'>"

@@ -135,28 +135,31 @@ do
   check("title used", has(html, "BASE INVENTORY"))
   check("fuller sorted first", html:find("T1 Ore", 1, true) < html:find("Pure T1", 1, true))
 
-  -- nil screen -> nil, no crash
-  local none = BIM.run({screen=nil, containers=containers, config=cfg, tick=1})
-  check("nil screen -> nil", none == nil)
+  -- no screen still renders + returns html (HUD-only path), no crash
+  local h2 = BIM.run({screen=nil, containers=containers, config={hud=false}, tick=1})
+  check("no screen still returns html", type(h2) == "string")
 end
 
 do
-  -- Bootstrap: install slot globals (mixed screen + containers), run start/tick.
+  -- Bootstrap: install slot globals (mixed screen + containers), start with opts.
   S.installGlobals({
     slots = {
       S.handle({vol=500, maxVol=1000, mass=1000, name="T1 Ore"}),  -- slot1
       S.screen(),                                                  -- slot2
       S.handle({vol=250, maxVol=1000, mass=600, name="Glass"}),    -- slot3
     },
-    exports = { refreshSeconds=8, warnPct=70, critPct=88, sortMode="name", title="MY BASE" },
   })
-  BIM.start()
+  BIM.start({ refreshSeconds=8, warnPct=70, critPct=88, sortMode="name",
+              title="MY BASE", build="t-1", hud=true })
   local scr = _G.slot2
   check("start activated screen", scr.activated == true)
   check("start drew screen", scr.last ~= nil)
   check("start used title", scr.last:find("MY BASE", 1, true) ~= nil)
   check("start shows 2 containers", scr.last:find("2 CONTAINERS", 1, true) ~= nil)
-  eq("config picked up export", BIM.config.warnPct, 70)
+  check("HUD mirror set", _G.system._hud ~= nil)
+  check("HUD shown", _G.system._shown == true)
+  check("footer build shown", scr.last:find("build t-1", 1, true) ~= nil)
+  eq("config from opts", BIM.config.warnPct, 70)
   eq("start set timer", _G.unit._timers["refresh"], 8)
   eq("tick counter init", BIM._tick, 0)
 
@@ -180,10 +183,12 @@ do
     check("json onStart signature", has(j, "onStart()"))
     check("json onTimer signature", has(j, "onTimer(timerId)"))
     check("json inlines source", has(j, "function M.renderHTML"))
-    check("json calls start", has(j, "BIM.start()"))
+    check("json calls start", has(j, "BIM.start("))
     check("json calls tick", has(j, "BIM.tick()"))
     check("json export refreshSeconds", has(j, "local refreshSeconds = 5 --export"))
-    check("json bridges title", has(j, "_G.title = title"))
+    check("json start passes opts", has(j, "BIM.start({"))
+    check("json passes title opt", has(j, "title = title"))
+    check("json no _G usage", not has(j, "_G"))
     check("json strips trailing return M", not has(j, "return M"))
   end
 end
