@@ -79,41 +79,74 @@ function M.itemLabel(content, getItem, maxShown)
   return label
 end
 
-local function titleCase(s)
-  return (tostring(s or ""):gsub("(%a)([%w_]*)", function(a, b) return a:upper() .. b:lower() end))
+-- Curated DU ore database (all 19 raw ores) so ore is detected precisely -- the one
+-- ambiguous case, since ores, pures and products all report type="material".
+local ORE_SET = {
+  quartz = true, hematite = true, coal = true, bauxite = true,
+  limestone = true, natron = true, malachite = true, chromite = true,
+  garnierite = true, petalite = true, pyrite = true, acanthite = true,
+  cryolite = true, cobaltite = true, kolbeckite = true,
+  columbite = true, rhodonite = true, ilmenite = true, vanadinite = true,
+}
+
+-- DU's item `type` is coarse (object / material / worldMaterial); materials are
+-- sub-classified into the friendly category Ore / Pure / Fuel / Scrap / Product.
+function M.classifyItem(it)
+  if not it then return "Item" end
+  local t = it.type
+  if t == "object" then return "Objects" end
+  if t == "worldMaterial" then return "Honeycomb" end
+  local n = (it.locDisplayName or it.displayName or it.name or ""):lower()
+  if ORE_SET[n] then return "Ore" end
+  if n:match("^pure ") then return "Pure" end
+  if n:match("scrap") then return "Scrap" end
+  if n:match("fuel") or n:match("nitron") or n:match("kergon") or n:match("xeron") then return "Fuel" end
+  return "Product"  -- refined materials, alloys, plastics, glass, components, ...
 end
 
--- Build a CATEGORY label from contents: tier (or tier range) + dominant item type,
--- e.g. "T1 Ore", "T1-2 Pure". Returns nil when nothing to name from.
+-- Fine categories roll up into broad groups for mixed containers.
+local BROAD = { Ore = "Materials", Pure = "Materials", Product = "Materials",
+                Fuel = "Materials", Scrap = "Materials" }
+
+-- Build a CATEGORY label from contents. A focused container shows its fine category
+-- ("T1 Ore"); two categories are listed ("T1-2 Ore & Pure"); a mixed container
+-- collapses to broad groups ("T1-3 Objects & Materials"). Returns nil if empty.
 function M.categoryLabel(content, getItem)
   if not content or #content == 0 or not getItem then return nil end
-  local qtyByType, order, minT, maxT = {}, {}, nil, nil
+  local qF, oF, qB, oB, minT, maxT = {}, {}, {}, {}, nil, nil
   for _, e in ipairs(content) do
     local id = e.id or e[1]
     local q = e.quantity or e[2] or 0
     if id and id ~= 0 then
       local it = getItem(id)
       if it then
-        local t = it.type or "item"
-        if not qtyByType[t] then qtyByType[t] = 0; order[#order + 1] = t end
-        qtyByType[t] = qtyByType[t] + q
+        local fine = M.classifyItem(it)
+        local broad = BROAD[fine] or fine
+        if not qF[fine] then qF[fine] = 0; oF[#oF + 1] = fine end
+        qF[fine] = qF[fine] + q
+        if not qB[broad] then qB[broad] = 0; oB[#oB + 1] = broad end
+        qB[broad] = qB[broad] + q
         local tr = it.tier
-        if tr then
+        if tr and tr > 0 then  -- ignore tier 0 (gases) in the range
           if not minT or tr < minT then minT = tr end
           if not maxT or tr > maxT then maxT = tr end
         end
       end
     end
   end
-  if #order == 0 then return nil end
-  local domType, domQ = order[1], qtyByType[order[1]]
-  for _, t in ipairs(order) do if qtyByType[t] > domQ then domType, domQ = t, qtyByType[t] end end
+  if #oF == 0 then return nil end
+  -- few fine categories -> list them; many -> collapse to broad groups
+  local keys, qty = oF, qF
+  if #oF > 2 then keys, qty = oB, qB end
+  table.sort(keys, function(a, b) return qty[a] > qty[b] end)
+  local shown = {}
+  for i = 1, math.min(2, #keys) do shown[#shown + 1] = keys[i] end
   local tierStr = ""
   if minT then
     tierStr = (minT == maxT) and ("T" .. minT .. " ") or ("T" .. minT .. "-" .. maxT .. " ")
   end
-  local label = tierStr .. titleCase(domType)
-  if #order > 1 then label = label .. " +" .. (#order - 1) end
+  local label = tierStr .. table.concat(shown, " & ")
+  if #keys > 2 then label = label .. " +" .. (#keys - 2) end
   return label
 end
 
@@ -122,10 +155,11 @@ end
 local function readContainer(c, idx, opts)
   opts = opts or {}
   local mode = opts.labelMode or "auto"
-  local label
+  local label, stacks = nil, 0
   if mode ~= "name" then
     local content = nil
     pcall(function() content = c.getContent() end)
+    stacks = content and #content or 0
     if mode == "category" then
       label = M.categoryLabel(content, opts.getItem)
     elseif mode == "items" then
@@ -134,7 +168,11 @@ local function readContainer(c, idx, opts)
       label = M.categoryLabel(content, opts.getItem) or M.itemLabel(content, opts.getItem)
     end
   end
-  if not label then label = handleName(c, idx) end  -- name mode / fallback
+  local nm = handleName(c, idx)
+  if not label then label = nm end  -- name mode / fallback
+  if (M._tick or 0) <= 1 then
+    dbg(string.format("box '%s': %d stacks -> '%s'", nm, stacks, label))
+  end
 
   local vol = c.getItemsVolume()
   local maxVol = c.getMaxVolume()

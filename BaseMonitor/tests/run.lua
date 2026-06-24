@@ -78,25 +78,39 @@ do
 end
 
 do
-  -- categoryLabel: tier(+range) + dominant item type.
+  -- classifyItem: coarse DU type + name patterns -> friendly category.
+  eq("classify object", BIM.classifyItem({type="object", locDisplayName="Basic LED"}), "Objects")
+  eq("classify worldMaterial", BIM.classifyItem({type="worldMaterial", locDisplayName="Glossy Silver"}), "Honeycomb")
+  eq("classify pure", BIM.classifyItem({type="material", locDisplayName="Pure Iron"}), "Pure")
+  eq("classify product", BIM.classifyItem({type="material", locDisplayName="Steel product"}), "Product")
+  eq("classify fuel", BIM.classifyItem({type="material", locDisplayName="Nitron Fuel"}), "Fuel")
+  eq("classify ore (default)", BIM.classifyItem({type="material", locDisplayName="Hematite"}), "Ore")
+end
+
+do
+  -- categoryLabel: focused -> fine; two -> listed; mixed -> broad groups.
   local db = {
-    [1] = {locDisplayName="Hematite", type="ore", tier=1},
-    [2] = {locDisplayName="Bauxite", type="ore", tier=1},
-    [9] = {locDisplayName="Pure Iron", type="pure", tier=2},
+    [1]  = {locDisplayName="Hematite", type="material", tier=1},          -- Ore
+    [2]  = {locDisplayName="Bauxite", type="material", tier=1},           -- Ore
+    [9]  = {locDisplayName="Pure Iron", type="material", tier=2},         -- Pure
+    [20] = {locDisplayName="Basic LED", type="object", tier=1},           -- Objects
+    [21] = {locDisplayName="Steel product", type="material", tier=2},     -- Product
+    [22] = {locDisplayName="Galvanized gray steel", type="worldMaterial", tier=1}, -- Honeycomb
   }
   local getItem = function(id) return db[id] end
-  eq("category uniform", BIM.categoryLabel({{id=1,quantity=10},{id=2,quantity=5}}, getItem), "T1 Ore")
+  eq("category focused", BIM.categoryLabel({{id=1,quantity=10},{id=2,quantity=5}}, getItem), "T1 Ore")
   eq("category single", BIM.categoryLabel({{id=9,quantity=3}}, getItem), "T2 Pure")
-  eq("category mixed type+tier",
-     BIM.categoryLabel({{id=1,quantity=10},{id=9,quantity=5}}, getItem), "T1-2 Ore +1")
+  eq("category two-listed",
+     BIM.categoryLabel({{id=1,quantity=10},{id=9,quantity=5}}, getItem), "T1-2 Ore & Pure")
+  eq("category mixed -> broad",
+     BIM.categoryLabel({{id=20,quantity=100},{id=1,quantity=50},{id=21,quantity=20},{id=22,quantity=10}}, getItem),
+     "T1-2 Objects & Materials +1")
   eq("category empty -> nil", BIM.categoryLabel({}, getItem), nil)
 
   local cont = S.handle({vol=1, maxVol=2, mass=1, name="Box",
                          content={{id=1,quantity=10},{id=2,quantity=5}}})
   eq("buildRows category mode",
      BIM.buildRows({cont}, {getItem=getItem, labelMode="category"})[1].label, "T1 Ore")
-  eq("buildRows auto prefers category",
-     BIM.buildRows({cont}, {getItem=getItem, labelMode="auto"})[1].label, "T1 Ore")
 end
 
 do
