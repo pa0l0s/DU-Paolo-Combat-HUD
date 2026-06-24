@@ -25,4 +25,42 @@ function M.formatPct(pct)
   return string.format("%d%%", math.floor(pct + 0.5))
 end
 
+local MAX_SLOTS = 24
+
+local function readContainer(c, getName)
+  local localId = nil
+  pcall(function() localId = c.getLocalId() end)
+  local label = (localId and getName and getName(localId)) or nil
+
+  local vol = c.getItemsVolume()
+  local maxVol = c.getMaxVolume()
+  local mass = c.getItemsMass()
+
+  if not label then label = "Container " .. tostring(localId or "?") end
+  local pct = 0
+  if maxVol and maxVol > 0 then pct = (vol / maxVol) * 100 end
+  return { label = label, vol = vol or 0, maxVol = maxVol or 0,
+           mass = mass or 0, pct = pct, ok = true }
+end
+
+function M.buildRows(slots, getName)
+  local rows = {}
+  for i = 1, MAX_SLOTS do
+    local c = slots[i]
+    if c ~= nil then
+      local ok, row = pcall(readContainer, c, getName)
+      if ok then
+        rows[#rows + 1] = row
+      else
+        -- Best-effort label even on failure.
+        local localId = nil
+        pcall(function() localId = c.getLocalId() end)
+        local label = (localId and getName and getName(localId)) or ("Container " .. tostring(localId or "?"))
+        rows[#rows + 1] = { label = label, vol = 0, maxVol = 0, mass = 0, pct = 0, ok = false }
+      end
+    end
+  end
+  return rows
+end
+
 return M

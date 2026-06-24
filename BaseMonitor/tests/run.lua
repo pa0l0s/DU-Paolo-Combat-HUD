@@ -10,6 +10,7 @@ end
 
 -- Load the source under test (sets global BIM).
 dofile("BaseMonitor/baseinventory.lua")
+local S = dofile("BaseMonitor/tests/stubs.lua")
 check("BIM table exists", type(BIM) == "table")
 
 -- (more tests appended in later tasks, before the summary below)
@@ -24,6 +25,28 @@ eq("mass t small", BIM.formatMass(0), "0.0 t")
 eq("pct", BIM.formatPct(73.4), "73%")
 eq("pct clamp hi", BIM.formatPct(140), "100%")
 eq("pct clamp lo", BIM.formatPct(-5), "0%")
+
+do
+  local slots = {
+    S.handle({vol=750, maxVol=1000, mass=2000, id=11}), -- 75%
+    nil,                                                  -- unlinked, skipped
+    S.handle({vol=0, maxVol=0, mass=0, id=13}),          -- empty/zero-max guarded
+    S.handle({throw=true, id=14}),                        -- read error -> ok=false
+  }
+  -- slots has a hole at index 2; build an explicit length-4 array:
+  slots = {slots[1], nil, S.handle({vol=0,maxVol=0,mass=0,id=13}), S.handle({throw=true,id=14})}
+  local getName = S.namer({[11]="T1 Ore", [13]="Pure T1", [14]="Glass"})
+  local rows = BIM.buildRows(slots, getName)
+
+  eq("rows count (skip nil)", #rows, 3)
+  eq("row1 label", rows[1].label, "T1 Ore")
+  eq("row1 pct", rows[1].pct, 75)
+  eq("row1 ok", rows[1].ok, true)
+  eq("zero-max pct guarded", rows[2].pct, 0)
+  eq("zero-max ok", rows[2].ok, true)
+  eq("error row ok=false", rows[3].ok, false)
+  eq("error row label", rows[3].label, "Glass")
+end
 
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)
