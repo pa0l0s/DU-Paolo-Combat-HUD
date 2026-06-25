@@ -1,0 +1,6 @@
+# Superpowers scratch (ledger, task briefs, review packages)
+.superpowers/
+
+# OS / editor noise
+Thumbs.db
+.DS_Store
