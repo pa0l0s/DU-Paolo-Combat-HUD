@@ -40,7 +40,11 @@ local MAX_SLOTS = 10  -- a Programming Board exposes slot1..slot10
 local function handleName(c, idx)
   local label = nil
   pcall(function() label = c.getName() end)
-  if label == nil or label == "" then label = "Container " .. tostring(idx) end
+  if label == nil or label == "" then
+    label = "Container " .. tostring(idx)
+  else
+    label = label:gsub("%s*%[%d+%]%s*$", "")  -- strip the " [457]" element-id suffix
+  end
   return label
 end
 

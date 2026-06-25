@@ -45,6 +45,10 @@ do
   eq("error row ok=false", rows[3].ok, false)
   eq("error row label", rows[3].label, "Glass")
   eq("noname fallback label", rows[4].label, "Container 4")
+
+  -- element-id suffix is stripped from fallback names
+  local h = S.handle({vol=1, maxVol=2, mass=1, name="Basic Container m [457]"})
+  eq("name id-suffix stripped", BIM.buildRows({h})[1].label, "Basic Container m")
 end
 
 do
