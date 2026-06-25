@@ -1,0 +1,8 @@
+local theme = require("core.theme")
+T.eq(theme.color("threat"), "#ff2a6d", "color threat")
+T.eq(theme.color("ready"), "#39ff14", "color ready")
+T.eq(theme.color("nonsense"), "#05d9e8", "color unknown -> base")
+T.ok(theme.glow("#ff2a6d"):find("#ff2a6d", 1, true) ~= nil, "glow embeds hex")
+local css = theme.css()
+T.ok(css:sub(1, 7) == "<style>", "css starts with style tag")
+T.ok(css:find(".threat{color:#ff2a6d", 1, true) ~= nil, "css has threat rule")
