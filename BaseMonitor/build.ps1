@@ -58,18 +58,25 @@ foreach ($k in $special.Keys) {
 $timerArgs = [System.Collections.ArrayList]::new()
 [void]$timerArgs.Add([ordered]@{ variable = "*" })
 
-$handlers = @(
-  [ordered]@{
+$handlers = [System.Collections.ArrayList]::new()
+[void]$handlers.Add([ordered]@{
     code   = $onStartCode
     filter = [ordered]@{ args = @(); signature = "onStart()"; slotKey = "-1" }
     key    = "0"
-  },
-  [ordered]@{
+  })
+[void]$handlers.Add([ordered]@{
     code   = $onTimerCode
     filter = [ordered]@{ args = $timerArgs; signature = "onTimer(timerId)"; slotKey = "-1" }
     key    = "1"
-  }
-)
+  })
+# One onContentUpdate handler per slot so each linked container can push its item list.
+for ($i = 1; $i -le 10; $i++) {
+  [void]$handlers.Add([ordered]@{
+      code   = "BIM.onContentUpdate($i)"
+      filter = [ordered]@{ args = @(); signature = "onContentUpdate()"; slotKey = "$($i - 1)" }
+      key    = "$($i + 1)"
+    })
+}
 
 $config = [ordered]@{
   slots    = $slots

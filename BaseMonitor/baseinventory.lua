@@ -165,8 +165,9 @@ local function readContainer(c, idx, opts)
   if c.updateContent then pcall(function() wait = c.updateContent() end) end
   local label, stacks = nil, 0
   if mode ~= "name" then
-    local content = nil
-    pcall(function() content = c.getContent() end)
+    -- Prefer content pushed by the onContentUpdate event; else poll getContent().
+    local content = M._content and M._content[c] or nil
+    if content == nil then pcall(function() content = c.getContent() end) end
     stacks = content and #content or 0
     if mode == "category" then
       label = M.categoryLabel(content, opts.getItem)
@@ -511,6 +512,21 @@ local function rawSlots()
   return t
 end
 
+-- Container onContentUpdate event handler (one per slot). DU pushes the freshly
+-- synced item list here; we cache it keyed by the element handle so the renderer
+-- uses it instead of polling. Logs every event to prove whether content arrives.
+function M.onContentUpdate(n)
+  local s = rawSlots()[n]
+  if not s then return end
+  local content = nil
+  pcall(function() content = s.getContent() end)
+  M._content = M._content or {}
+  M._content[s] = content or {}
+  local cls = "?"
+  pcall(function() cls = tostring(s.getClass()) end)
+  dbg(string.format("CONTENT EVENT slot%d class=%s: %d stacks", n, cls, content and #content or 0))
+end
+
 -- Dense array of linked slots (nil/unlinked dropped) so # is reliable.
 local function gatherSlots()
   local raw = rawSlots()
@@ -546,6 +562,7 @@ function M.start(opts)
   M.config = buildConfig(opts)
   M.debug = M.config.debug
   M._tick = 0
+  M._content = M._content or {}
   dbg("===== Base Inventory Monitor build " .. tostring(M.config.build) .. " =====")
   dbg("onStart begin -- scanning slot1.." .. MAX_SLOTS)
   dumpSlots()
