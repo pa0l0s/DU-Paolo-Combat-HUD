@@ -13,4 +13,5 @@ return {
   "test_gunner_view",
   "test_du_adapters",
   "test_gunner_smoke",
+  "test_resist",
 }
