@@ -48,7 +48,7 @@ T.ok(type(html) == "string", "render returns html")
 T.ok(html == sys._last.screen, "setScreen received html")
 T.ok(html:find("WEAPONS", 1, true) ~= nil, "weapons panel present")
 T.ok(html:find("Foe", 1, true) ~= nil, "locked target shown")
-T.ok(html:find("042", 1, true) ~= nil, "target id marker / panel (4242 % 1000)")
+T.ok(html:find("242", 1, true) ~= nil, "target id marker / panel (4242 % 1000 = 242)")
 T.ok(db.hasKey("pilotTarget"), "channel seeded")
 
 -- event handlers don't error and update telemetry

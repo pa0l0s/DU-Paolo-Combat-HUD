@@ -58,7 +58,7 @@ function M.start(env)
       local hitPct = avgHit(readings)
       target = {
         name = (info.name or ""):sub(1, 16),
-        id3 = string.format("%03d", tid % 100),
+        id3 = string.format("%03d", tid % 1000),
         coreSize = info.coreSize or "?",
         identified = info.identified,
         dist = format.distance(info.distance),
@@ -92,7 +92,7 @@ function M.start(env)
           })
           markers[#markers + 1] = {
             x = scr.x, y = scr.y, role = cls.role,
-            label = string.format("%03d", id % 100),
+            label = string.format("%03d", id % 1000),
             sub = format.distance(info.distance),
           }
         end
