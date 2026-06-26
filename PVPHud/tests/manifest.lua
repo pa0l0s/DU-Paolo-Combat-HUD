@@ -8,4 +8,5 @@ return {
   "test_threat",
   "test_tracking",
   "test_weapons",
+  "test_widgets",
 }
