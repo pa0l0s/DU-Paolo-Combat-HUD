@@ -10,4 +10,5 @@ return {
   "test_weapons",
   "test_widgets",
   "test_ar_layer",
+  "test_gunner_view",
 }
