@@ -12,4 +12,5 @@ return {
   "test_ar_layer",
   "test_gunner_view",
   "test_du_adapters",
+  "test_gunner_smoke",
 }

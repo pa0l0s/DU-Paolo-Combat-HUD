@@ -75,3 +75,67 @@ $(Indent $bundle 16)
 "@
 
 Write-Conf "pvphud_selftest.conf" $conf
+
+# --- Gunner Seat HUD target ---
+$gunnerModules = @(
+  'core.format', 'core.theme', 'core.channel', 'core.ballistics', 'core.weapons',
+  'core.dps', 'core.threat', 'core.tracking', 'du.weapon', 'du.radar', 'du.construct',
+  'render.widgets', 'render.ar_layer', 'render.gunner_view', 'bootstrap_gunner'
+)
+$gunnerBoot = @"
+system.showScreen(1)
+GunnerApp = require('bootstrap_gunner').start({ system = system, construct = construct, weapon = weapon, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+unit.setTimer('dpsTick', 1)
+"@
+$gunnerBundle = Build-Bundle $gunnerModules 'bootstrap_gunner' $gunnerBoot
+
+# Per-weapon hit/miss handlers (weapon_1 .. weapon_6)
+$weaponHandlers = ""
+for ($i = 1; $i -le 6; $i++) {
+  $weaponHandlers += @"
+    weapon_$($i):
+        onHit(targetId,damage):
+            lua: |
+                if GunnerApp then GunnerApp.onWeaponHit(targetId, damage) end
+        onMissed(targetId):
+            lua: |
+                if GunnerApp then GunnerApp.onWeaponMiss(targetId) end
+"@
+  $weaponHandlers += "`n"
+}
+
+$gunnerConf = @"
+name: Gunner Seat HUD (Retrosyncwave)
+slots:
+    core:
+        class: CoreUnit
+    weapon:
+        class: WeaponUnit
+        select: manual
+    radar:
+        class: RadarPVPUnit
+        select: manual
+    db:
+        class: DataBank
+        select: manual
+handlers:
+    unit:
+        onStart:
+            lua: |
+$(Indent $gunnerBundle 16)
+        tick:
+            args: ["dpsTick"]
+            lua: |
+                if GunnerApp then GunnerApp.onTick() end
+    system:
+        onUpdate:
+            lua: |
+                if GunnerApp then GunnerApp.onUpdate() end
+    core:
+        onStressChanged(stress):
+            lua: |
+                if GunnerApp then GunnerApp.onDamage(stress) end
+$weaponHandlers
+"@
+
+Write-Conf "gunner_seat_hud.conf" $gunnerConf
