@@ -4,4 +4,5 @@ return {
   "test_channel",
   "test_bundle_smoke",
   "test_ballistics",
+  "test_dps",
 }
