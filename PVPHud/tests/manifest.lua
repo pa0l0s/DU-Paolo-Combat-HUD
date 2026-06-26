@@ -15,4 +15,5 @@ return {
   "test_controller_adapters",
   "test_gunner_smoke",
   "test_resist",
+  "test_controller_view",
 }
