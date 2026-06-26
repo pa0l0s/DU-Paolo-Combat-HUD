@@ -9,4 +9,5 @@ return {
   "test_tracking",
   "test_weapons",
   "test_widgets",
+  "test_ar_layer",
 }
