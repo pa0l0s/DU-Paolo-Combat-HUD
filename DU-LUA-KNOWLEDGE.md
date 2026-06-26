@@ -69,6 +69,7 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
 - `system` (slot -4) events: `onActionStart/Loop/Stop(action)`, `onUpdate()`, `onFlush()`,
   `onInputText(text)`, `onCameraChanged(mode)`.
 - Generator reference: `wolfe-labs/DU-LuaC` `src/lib/DULuaConfig.ts` defines this format.
+- Autoconf `.conf` files apply to **control units** (remote controller, gunner seat, pilot/command seats) via the in-game **Autoconfigure** button — programming boards use `config.json` and cannot take a `.conf`. A `require`-shim bundle (per-module `__mods[...]` loaders inlined under a `lua: |` block, falling back to DU's real `require` for libs like `dkjson`) loads and renders correctly on a control unit — validated 2026-06-26 with the PVPHud self-test on a Remote Controller.
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split
