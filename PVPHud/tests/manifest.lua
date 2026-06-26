@@ -7,4 +7,10 @@ return {
   "test_dps",
   "test_threat",
   "test_tracking",
+  "test_weapons",
+  "test_widgets",
+  "test_ar_layer",
+  "test_gunner_view",
+  "test_du_adapters",
+  "test_gunner_smoke",
 }
