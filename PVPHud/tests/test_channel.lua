@@ -26,3 +26,12 @@ T.eq(#ch.getJson("friendlist"), 1, "json roundtrip via codec")
 -- nil db is tolerated (HUD runs without a databank)
 local ch2 = channel.new(nil, nil)
 T.eq(ch2.getInt("GunnerSystem"), 0, "nil db returns default")
+
+-- getJson must never hand out the shared schema default by reference.
+-- Use ch2 (nil db) to ensure default path is taken, not the codec decode path.
+local a = ch2.getJson("deadCores")
+local b = ch2.getJson("deadCores")
+T.ok(a ~= b, "getJson returns distinct tables per call")
+a["x"] = 1
+T.eq(#channel.schema.deadCores.default, 0, "schema default not mutated by caller")
+T.eq(next(ch2.getJson("deadCores")), nil, "later getJson still empty after caller mutation")

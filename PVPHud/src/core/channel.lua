@@ -2,6 +2,13 @@
 -- Pure: operates on an injected databank object + optional JSON codec.
 local M = {}
 
+-- Shallow copy of a schema default so callers never mutate the shared instance.
+local function copyDefault(default)
+  local c = {}
+  for k, v in pairs(default) do c[k] = v end
+  return c
+end
+
 -- key -> { kind = "int"|"json", default = value }
 M.schema = {
   pilotTarget  = { kind = "int",  default = 0 },
@@ -44,8 +51,10 @@ function M.new(db, codec)
 
   function self.getJson(key)
     local spec = M.schema[key]
-    if not db or not codec or not db.hasKey(key) then return spec.default end
-    return codec.decode(db.getStringValue(key)) or spec.default
+    if not db or not codec or not db.hasKey(key) then
+      return copyDefault(spec.default)
+    end
+    return codec.decode(db.getStringValue(key)) or copyDefault(spec.default)
   end
 
   function self.setJson(key, value)
