@@ -7,4 +7,5 @@ return {
   "test_dps",
   "test_threat",
   "test_tracking",
+  "test_weapons",
 }
