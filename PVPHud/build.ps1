@@ -139,3 +139,53 @@ $weaponHandlers
 "@
 
 Write-Conf "gunner_seat_hud.conf" $gunnerConf
+
+# --- Remote Controller HUD target ---
+$ctrlModules = @(
+  'core.format', 'core.theme', 'core.channel', 'core.resist', 'core.ballistics',
+  'du.shield', 'du.flight', 'render.widgets', 'render.controller_view',
+  'bootstrap_controller'
+)
+$ctrlBoot = @"
+system.showScreen(1)
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+"@
+$ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
+
+$ctrlConf = @"
+name: Remote Controller HUD (Retrosyncwave)
+slots:
+    core:
+        class: CoreUnit
+    shield:
+        class: ShieldGeneratorUnit
+        select: manual
+    radar:
+        class: RadarPVPUnit
+        select: manual
+    db:
+        class: DataBank
+        select: manual
+handlers:
+    unit:
+        onStart:
+            lua: |
+$(Indent $ctrlBundle 16)
+    system:
+        onUpdate:
+            lua: |
+                if CtrlApp then CtrlApp.onUpdate() end
+        onFlush:
+            lua: |
+                if CtrlApp then CtrlApp.onFlush() end
+        actionStart:
+            args: ["option6"]
+            lua: |
+                if CtrlApp then CtrlApp.toggleAuto() end
+        actionStart:
+            args: ["option8"]
+            lua: |
+                if CtrlApp then CtrlApp.toggleVent() end
+"@
+
+Write-Conf "remote_controller_hud.conf" $ctrlConf
