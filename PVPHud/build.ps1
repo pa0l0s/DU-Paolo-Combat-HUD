@@ -148,7 +148,7 @@ $ctrlModules = @(
 )
 $ctrlBoot = @"
 system.showScreen(1)
-CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, unit = unit, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 "@
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 
@@ -196,14 +196,17 @@ $(Indent $ctrlBundle 16)
                 -- Translation from throttle (current Navigator API; old throttle helper removed)
                 local navCom = Nav.axisCommandManager
                 local longTags = 'thrust analog longitudinal'
-                Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
+                -- Don't push forward while braking (otherwise thrust fights the brake).
+                if brakeInput ~= 1 then
+                  Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
+                end
                 local vertTags = 'thrust analog vertical'
                 Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1)
                 if CtrlApp then CtrlApp.onFlush() end
         onUpdate:
             lua: |
                 Nav:update()
-                if CtrlApp then CtrlApp.onUpdate() end
+                if CtrlApp then CtrlApp.onUpdate(brakeInput) end
         onActionStart:
             args: [forward]
             lua: pitchInput = pitchInput - 1

@@ -17,4 +17,5 @@ return {
   "test_resist",
   "test_controller_view",
   "test_controller_smoke",
+  "test_flight",
 }
