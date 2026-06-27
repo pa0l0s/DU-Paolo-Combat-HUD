@@ -148,7 +148,7 @@ $ctrlModules = @(
 )
 $ctrlBoot = @"
 system.showScreen(1)
-CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield_1, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 "@
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 
@@ -159,9 +159,6 @@ slots:
         class: CoreUnit
     shield:
         class: ShieldGeneratorUnit
-        select: manual
-    radar:
-        class: RadarPVPUnit
         select: manual
     db:
         class: DataBank
