@@ -70,6 +70,27 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
   `onInputText(text)`, `onCameraChanged(mode)`.
 - Generator reference: `wolfe-labs/DU-LuaC` `src/lib/DULuaConfig.ts` defines this format.
 - Autoconf `.conf` files apply to **control units** (remote controller, gunner seat, pilot/command seats) via the in-game **Autoconfigure** button — programming boards use `config.json` and cannot take a `.conf`. A `require`-shim bundle (per-module `__mods[...]` loaders inlined under a `lua: |` block, falling back to DU's real `require` for libs like `dkjson`) loads and renders correctly on a control unit — validated 2026-06-26 with the PVPHud self-test on a Remote Controller.
+- **Autoconf slot globals & `select: manual` (cost hours — PVPHud bug):** a slot named `foo`
+  with `select: manual` exposes the **element** as `foo_1` (and `foo_2`…) plus a bare-name
+  **array** `foo` (with `foo_size`). Use **`foo_1`** to call element methods; the bare `foo`
+  is a table and calling element methods on it errors `attempt to call a nil value (field
+  '...')`. (GFL uses `radar_1`/`db_1`/`ammoCont_1` for its manual slots, and `weapon` as an
+  array.) A slot with no `select:` gives the element directly under the bare name.
+- **Repeated handler keys are valid** in autoconf: multiple `actionStart:`+`args:[optionN]`
+  (or `onActionStart:`) siblings under one `system:` mapping are the normal pattern — the
+  official `sample.conf` ships 12 duplicate `onActionStart:` keys. DU's importer is **not** a
+  strict YAML parser; do not "dedupe" them. `option1..9` = Alt+1..9; `lua1..5` = Lua tabs.
+- **`getPointOnScreen` is on `library`, NOT `construct` or `system`** (cost hours — PVPHud bug):
+  `library.getPointOnScreen({x,y,z})` → `{sx, sy, depth}` (fractions 0..1 of screen; `depth<=0`
+  = behind camera). Confirmed in the official `api-mockup` (absent from construct.lua/system.lua)
+  and by GFL/ArchHUD. Multiply by `system.getScreenWidth()/Height()` for pixels.
+- **Authoritative API method names: read `github.com/dual-universe/lua-examples/api-mockup`**
+  raw files — file names are lowercase singular, e.g. `shieldgenerator.lua`, `weapon.lua`,
+  `radar.lua`, `construct.lua`, `system.lua`, `element.lua`. Do NOT trust community-HUD method
+  names blindly (they can be deprecated/renamed). Shield ship API: `getShieldHitpoints`,
+  `getMaxShieldHitpoints`, `getResistances`, `setResistances(am,em,ki,th)`, `getResistancesPool`,
+  `getResistancesCooldown`, `getStressRatioRaw`, `isVenting`, `startVenting`/`stopVenting`,
+  `getVentingCooldown`.
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split
