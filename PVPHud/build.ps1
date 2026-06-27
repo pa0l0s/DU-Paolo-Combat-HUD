@@ -56,7 +56,7 @@ $bootLua = "system.showScreen(1)`nfunction __pvphud_render() __entry.start({ sys
 $bundle  = Build-Bundle $modules 'bootstrap_smoke' $bootLua
 
 $conf = @"
-name: PVPHud Self-Test
+name: PVPHud Self-Test v$build
 slots:
     core:
         class: CoreUnit
@@ -105,7 +105,7 @@ for ($i = 1; $i -le 6; $i++) {
 }
 
 $gunnerConf = @"
-name: Gunner Seat HUD (Retrosyncwave)
+name: Gunner Seat HUD (Retrosyncwave) v$build
 slots:
     core:
         class: CoreUnit
@@ -153,7 +153,7 @@ CtrlApp = require('bootstrap_controller').start({ system = system, construct = c
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 
 $ctrlConf = @"
-name: Remote Controller HUD (Retrosyncwave)
+name: Remote Controller HUD (Retrosyncwave) v$build
 slots:
     core:
         class: CoreUnit
