@@ -168,12 +168,12 @@ handlers:
         onStart:
             lua: |
 $(Indent $ctrlBundle 16)
-                -- Flight control (official DU sample-autoconf pattern). These are
-                -- bare globals so the system action/flush handlers can read them.
+                -- Flight control (current DU Navigator API, per ArchHUD/GFL). Bare
+                -- globals so the system action/flush handlers can read them.
                 Nav = Navigator.new(system, core, unit)
+                unit.hideWidget() -- hide the default control widget (it fights throttle/brake)
                 pitchInput = 0
                 rollInput = 0
-                liftInput = 0
                 yawInput = 0
                 brakeInput = 0
                 local brakeToggle = true --export: Brake key toggles on/off (true) or is momentary hold (false)
@@ -193,9 +193,12 @@ $(Indent $ctrlBundle 16)
                 local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
                 angularAccel = angularAccel - airAcceleration
                 Nav:setEngineCommand('torque', vec3(), angularAccel)
-                Nav:setEngineCommandFromThrottle('thrust analog longitudinal', axisCommandId.longitudinal)
-                Nav:setEngineCommand('thrust analog vertical', Nav:composeLiftUpAcceleration(liftInput), vec3())
-                Nav:setBoosterCommand('rocket_engine')
+                -- Translation from throttle (current Navigator API; old throttle helper removed)
+                local navCom = Nav.axisCommandManager
+                local longTags = 'thrust analog longitudinal'
+                Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
+                local vertTags = 'thrust analog vertical'
+                Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1)
                 if CtrlApp then CtrlApp.onFlush() end
         onUpdate:
             lua: |
@@ -225,18 +228,12 @@ $(Indent $ctrlBundle 16)
         onActionStop:
             args: [right]
             lua: rollInput = rollInput - 1
-        onActionStart:
+        onActionLoop:
             args: [up]
-            lua: liftInput = liftInput + 1
-        onActionStop:
-            args: [up]
-            lua: liftInput = liftInput - 1
-        onActionStart:
+            lua: Nav.axisCommandManager:updateThrottleCommand(axisCommandId.vertical, 0.05)
+        onActionLoop:
             args: [down]
-            lua: liftInput = liftInput - 1
-        onActionStop:
-            args: [down]
-            lua: liftInput = liftInput + 1
+            lua: Nav.axisCommandManager:updateThrottleCommand(axisCommandId.vertical, -0.05)
         onActionStart:
             args: [yawright]
             lua: yawInput = yawInput - 1
@@ -257,9 +254,6 @@ $(Indent $ctrlBundle 16)
             args: [brake]
             lua: |
                 if not brakeToggleMode then brakeInput = 0 end
-        onActionStart:
-            args: [booster]
-            lua: Nav:toggleBoosters()
         onActionStart:
             args: [stopengines]
             lua: Nav.axisCommandManager:setThrottleCommand(axisCommandId.longitudinal, 0)
