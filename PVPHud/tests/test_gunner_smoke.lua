@@ -30,7 +30,9 @@ local radar = {
   hasMatchingTransponder = function() return false end,
   getConstructWorldPos = function() return { 1, 2, 3 } end,
 }
-local construct = { getPointOnScreen = function(_) return { 0.5, 0.5, 1 } end }
+-- getPointOnScreen lives on `library` in DU, NOT on `construct`.
+local library = { getPointOnScreen = function(_) return { 0.5, 0.5, 1 } end }
+local construct = {}
 local sys = stubs.newSystem()
 local db = stubs.newDatabank()
 local codec = {
@@ -39,7 +41,7 @@ local codec = {
 }
 
 local app = boot.start({
-  system = sys, construct = construct, weapon = { stubWeapon() },
+  system = sys, construct = construct, library = library, weapon = { stubWeapon() },
   radar = radar, db = db, codec = codec, build = 9,
 })
 
@@ -49,6 +51,8 @@ T.ok(html == sys._last.screen, "setScreen received html")
 T.ok(html:find("WEAPONS", 1, true) ~= nil, "weapons panel present")
 T.ok(html:find("Foe", 1, true) ~= nil, "locked target shown")
 T.ok(html:find("242", 1, true) ~= nil, "target id marker / panel (4242 % 1000 = 242)")
+-- AR marker box (20x20) only renders when world->screen projection succeeds via library
+T.ok(html:find('width="20" height="20"', 1, true) ~= nil, "AR marker rendered via library.getPointOnScreen")
 T.ok(db.hasKey("pilotTarget"), "channel seeded")
 
 -- event handlers don't error and update telemetry

@@ -84,7 +84,7 @@ $gunnerModules = @(
 )
 $gunnerBoot = @"
 system.showScreen(1)
-GunnerApp = require('bootstrap_gunner').start({ system = system, construct = construct, weapon = weapon, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+GunnerApp = require('bootstrap_gunner').start({ system = system, construct = construct, library = library, weapon = weapon, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 unit.setTimer('dpsTick', 1)
 "@
 $gunnerBundle = Build-Bundle $gunnerModules 'bootstrap_gunner' $gunnerBoot
@@ -148,7 +148,7 @@ $ctrlModules = @(
 )
 $ctrlBoot = @"
 system.showScreen(1)
-CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, shield = shield_1, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 "@
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 

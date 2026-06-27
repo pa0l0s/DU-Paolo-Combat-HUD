@@ -20,7 +20,7 @@ function M.start(env)
   local sys = env.system
   local W = duWeapon.new(env.weapon)
   local R = duRadar.new(env.radar)
-  local C = duConstruct.new(env.construct)
+  local C = duConstruct.new(env.library) -- getPointOnScreen lives on `library`
   local ch = channel.new(env.db, env.codec)
   ch.seed()
   local dps = dpsmod.new({})
