@@ -24,10 +24,11 @@ function M.build(state)
     p[#p + 1] = widgets.bar(190, y - 12, 170, 14, wp.barPct, wp.role)
   end
 
-  -- Telemetry panel (top-right)
+  -- Telemetry panel (right side, mid-screen: top-right is used by game windows)
   local sx = w - 320
-  p[#p + 1] = widgets.panel(sx, top, 300, 160)
-  p[#p + 1] = widgets.text(sx + 12, top + 24, "TELEMETRY", "base", 18)
+  local ty = h / 2 - 80
+  p[#p + 1] = widgets.panel(sx, ty, 300, 160)
+  p[#p + 1] = widgets.text(sx + 12, ty + 24, "TELEMETRY", "base", 18)
   local st = state.stats
   local lines = {
     "FIRED   " .. st.shotsFired,
@@ -37,7 +38,7 @@ function M.build(state)
     "DAMAGE  " .. st.damage,
   }
   for i, ln in ipairs(lines) do
-    p[#p + 1] = widgets.text(sx + 12, top + 24 + i * 22, ln, "base", 15)
+    p[#p + 1] = widgets.text(sx + 12, ty + 24 + i * 22, ln, "base", 15)
   end
   if state.graphSvg and state.graphSvg ~= "" then p[#p + 1] = state.graphSvg end
 

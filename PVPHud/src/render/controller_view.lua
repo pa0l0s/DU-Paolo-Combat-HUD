@@ -12,14 +12,27 @@ function M.build(state)
   local w, h = state.screenW, state.screenH
   local p = { state.css or "", svgOpen(w, h) }
 
-  -- Flight panel (bottom-center)
-  local fx, fy = w / 2 - 200, h - 150
-  p[#p + 1] = widgets.panel(fx, fy, 400, 120)
-  p[#p + 1] = widgets.text(fx + 14, fy + 26, "FLIGHT", "base", 18)
+  -- Flight panel (bottom-center): speed, throttle set + engine warm-up bars,
+  -- output g, and brake state + brake distance.
   local f = state.flight
-  p[#p + 1] = widgets.text(fx + 14, fy + 52, "SPEED   " .. f.speed, "base", 15)
-  p[#p + 1] = widgets.text(fx + 14, fy + 74, "MASS    " .. f.mass, "base", 15)
-  p[#p + 1] = widgets.text(fx + 14, fy + 96, "MAXSPD  " .. f.maxSpeed, "base", 15)
+  local fx, fy = w / 2 - 210, h - 250
+  p[#p + 1] = widgets.panel(fx, fy, 420, 220)
+  p[#p + 1] = widgets.text(fx + 14, fy + 26, "FLIGHT", "base", 18)
+  p[#p + 1] = widgets.text(fx + 14, fy + 50, "SPEED   " .. f.speed, "base", 15)
+  -- throttle SET
+  p[#p + 1] = widgets.text(fx + 14, fy + 78, "THR " .. f.throttleStr, f.throttleRole or "base", 15)
+  p[#p + 1] = widgets.bar(fx + 120, fy + 66, 286, 14, f.throttleBar, f.throttleRole or "ready")
+  -- ENGINE output (warm-up ramp toward the throttle set)
+  p[#p + 1] = widgets.text(fx + 14, fy + 104, "ENG", "base", 15)
+  p[#p + 1] = widgets.bar(fx + 120, fy + 92, 286, 14, f.engineRatio, "caution")
+  -- output acceleration in g
+  p[#p + 1] = widgets.text(fx + 14, fy + 130, "OUTPUT  " .. f.outputG, "base", 15)
+  -- brake state + always-on brake distance
+  p[#p + 1] = widgets.text(fx + 14, fy + 158, f.brakeState, f.brakeRole or "base", 16)
+  p[#p + 1] = widgets.text(fx + 210, fy + 158, "DIST " .. f.brakeDist, "base", 15)
+  -- mass / max speed
+  p[#p + 1] = widgets.text(fx + 14, fy + 192, "MASS " .. f.mass, "base", 13)
+  p[#p + 1] = widgets.text(fx + 220, fy + 192, "MAX " .. f.maxSpeed, "base", 13)
 
   -- Shield panel (left)
   local s = state.shield
