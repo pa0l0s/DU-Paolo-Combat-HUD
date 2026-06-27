@@ -168,19 +168,113 @@ handlers:
         onStart:
             lua: |
 $(Indent $ctrlBundle 16)
+                -- Flight control (official DU sample-autoconf pattern). These are
+                -- bare globals so the system action/flush handlers can read them.
+                Nav = Navigator.new(system, core, unit)
+                pitchInput = 0
+                rollInput = 0
+                liftInput = 0
+                yawInput = 0
+                brakeInput = 0
+                local brakeToggle = true --export: Brake key toggles on/off (true) or is momentary hold (false)
+                brakeToggleMode = brakeToggle
     system:
-        onUpdate:
-            lua: |
-                if CtrlApp then CtrlApp.onUpdate() end
         onFlush:
             lua: |
+                local rotationSpeed = 2 --export: flight rotation speed (rad/s)
+                local torqueFactor = 1 --export: torque factor to reach rotationSpeed (high = unstable)
+                local worldUp = vec3(construct.getWorldOrientationUp())
+                local worldForward = vec3(construct.getWorldOrientationForward())
+                local worldRight = vec3(construct.getWorldOrientationRight())
+                local currentAngularVelocity = vec3(construct.getWorldAngularVelocity())
+                local targetAngularVelocity = pitchInput * worldRight + rollInput * worldForward + yawInput * worldUp
+                targetAngularVelocity = rotationSpeed * targetAngularVelocity:normalize()
+                local angularAccel = torqueFactor * (targetAngularVelocity - currentAngularVelocity)
+                local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
+                angularAccel = angularAccel - airAcceleration
+                Nav:setEngineCommand('torque', vec3(), angularAccel)
+                Nav:setEngineCommandFromThrottle('thrust analog longitudinal', axisCommandId.longitudinal)
+                Nav:setEngineCommand('thrust analog vertical', Nav:composeLiftUpAcceleration(liftInput), vec3())
+                Nav:setBoosterCommand('rocket_engine')
                 if CtrlApp then CtrlApp.onFlush() end
-        actionStart:
-            args: ["option6"]
+        onUpdate:
+            lua: |
+                Nav:update()
+                if CtrlApp then CtrlApp.onUpdate() end
+        onActionStart:
+            args: [forward]
+            lua: pitchInput = pitchInput - 1
+        onActionStop:
+            args: [forward]
+            lua: pitchInput = pitchInput + 1
+        onActionStart:
+            args: [backward]
+            lua: pitchInput = pitchInput + 1
+        onActionStop:
+            args: [backward]
+            lua: pitchInput = pitchInput - 1
+        onActionStart:
+            args: [left]
+            lua: rollInput = rollInput - 1
+        onActionStop:
+            args: [left]
+            lua: rollInput = rollInput + 1
+        onActionStart:
+            args: [right]
+            lua: rollInput = rollInput + 1
+        onActionStop:
+            args: [right]
+            lua: rollInput = rollInput - 1
+        onActionStart:
+            args: [up]
+            lua: liftInput = liftInput + 1
+        onActionStop:
+            args: [up]
+            lua: liftInput = liftInput - 1
+        onActionStart:
+            args: [down]
+            lua: liftInput = liftInput - 1
+        onActionStop:
+            args: [down]
+            lua: liftInput = liftInput + 1
+        onActionStart:
+            args: [yawright]
+            lua: yawInput = yawInput - 1
+        onActionStop:
+            args: [yawright]
+            lua: yawInput = yawInput + 1
+        onActionStart:
+            args: [yawleft]
+            lua: yawInput = yawInput + 1
+        onActionStop:
+            args: [yawleft]
+            lua: yawInput = yawInput - 1
+        onActionStart:
+            args: [brake]
+            lua: |
+                if brakeToggleMode then brakeInput = 1 - brakeInput else brakeInput = 1 end
+        onActionStop:
+            args: [brake]
+            lua: |
+                if not brakeToggleMode then brakeInput = 0 end
+        onActionStart:
+            args: [booster]
+            lua: Nav:toggleBoosters()
+        onActionStart:
+            args: [stopengines]
+            lua: Nav.axisCommandManager:setThrottleCommand(axisCommandId.longitudinal, 0)
+        onActionLoop:
+            args: [speedup]
+            lua: Nav.axisCommandManager:updateThrottleCommand(axisCommandId.longitudinal, 0.05)
+        onActionLoop:
+            args: [speeddown]
+            lua: Nav.axisCommandManager:updateThrottleCommand(axisCommandId.longitudinal, -0.05)
+        onActionStart:
+            args: [option6]
             lua: |
                 if CtrlApp then CtrlApp.toggleAuto() end
-        actionStart:
-            args: ["option8"]
+        onActionStart:
+            args: [option8]
             lua: |
                 if CtrlApp then CtrlApp.toggleVent() end
 "@
