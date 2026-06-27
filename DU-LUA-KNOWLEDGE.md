@@ -116,6 +116,15 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
   in onStart hides the default control widget (it otherwise fights script throttle/brake).
   When unsure of a Navigator/engine method, grep a CURRENT working HUD (`archhud/apclass.lua`,
   `GFL_Pilot_2.3.conf`) — NOT the stale `sample.conf`.
+- **Braking must be COMMANDED — setting `brakeInput` alone does nothing** in custom flight
+  (cost a test session — PVPHud; the HUD showed "BRAKE ON" but the retro-rockets never fired).
+  Per GFL_Pilot, command the brake elements each `onFlush`:
+  `local v = vec3(construct.getWorldVelocity()); local f = brakeInput * construct.getMaxBrake()
+  * (-v:normalize()); if v:len() < 5 then f = brakeInput * -(30*v + v:normalize() +
+  vec3(construct.getWorldGravity())) end; Nav:setEngineForceCommand('brake', f)`. The `'brake'`
+  tag takes a **force** vector (N, magnitude `getMaxBrake()`), opposing velocity; zero force
+  releases the brakes. This drives BOTH space retro-rockets and atmo brakes. (PVP flight
+  references: `GFL_Pilot_2.3.conf`, `FOX_Flight.conf`; ArchHUD is PVE-leaning.)
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split

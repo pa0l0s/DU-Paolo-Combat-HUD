@@ -230,6 +230,15 @@ $(Indent $ctrlBundle 16)
                 end
                 local vertTags = 'thrust analog vertical'
                 Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1)
+                -- Brake: must explicitly command the brake elements (retro-rockets / atmo
+                -- brakes); setting brakeInput alone does nothing. Force opposes velocity at
+                -- getMaxBrake(); zero force when not braking releases them. (per GFL_Pilot)
+                local brakeVel = vec3(construct.getWorldVelocity())
+                local brakeForce = brakeInput * construct.getMaxBrake() * (-brakeVel:normalize())
+                if brakeVel:len() < 5 then
+                  brakeForce = brakeInput * -(30 * brakeVel + brakeVel:normalize() + vec3(construct.getWorldGravity()))
+                end
+                Nav:setEngineForceCommand('brake', brakeForce)
                 if CtrlApp then CtrlApp.onFlush() end
         onUpdate:
             lua: |
