@@ -19,7 +19,6 @@ local construct = {
   getWorldVelocity = function() return { 100, 0, 0 } end,
   getMass = function() return 50000 end,
 }
-local radar = { getTargetId = function() return 0 end, getConstructIds = function() return {} end }
 local sys = stubs.newSystem()
 local db = stubs.newDatabank()
 local codec = {
@@ -29,7 +28,7 @@ local codec = {
 
 local app = boot.start({
   system = sys, construct = construct, shield = shield,
-  radar = radar, db = db, codec = codec, build = 9,
+  db = db, codec = codec, build = 9,
 })
 
 local html = app.render()
