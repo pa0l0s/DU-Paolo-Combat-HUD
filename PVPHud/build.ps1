@@ -13,7 +13,35 @@ $build = 1
 if (Test-Path $buildFile) { $build = [int](Get-Content $buildFile) + 1 }
 Set-Content -Path $buildFile -Value $build
 
+# Auto-resolve the transitive require() closure of an entry module by scanning
+# src/ for require('core.x'|'du.x'|'render.x'|'bootstrap.x') -- so the bundle's
+# module list can never drift out of sync with the actual dependencies.
+# External modules (e.g. dkjson) have no src file and are left to DU's real require.
+function Resolve-Deps([string]$entry) {
+  $seen = @{}
+  $result = New-Object System.Collections.Generic.List[string]
+  $queue = New-Object System.Collections.Generic.Queue[string]
+  $queue.Enqueue($entry)
+  while ($queue.Count -gt 0) {
+    $name = $queue.Dequeue()
+    if ($seen.ContainsKey($name)) { continue }
+    $seen[$name] = $true
+    $file = Join-Path $srcDir (($name -replace '\.', '/') + ".lua")
+    if (-not (Test-Path $file)) { continue }
+    [void]$result.Add($name)
+    $code = Get-Content $file -Raw
+    foreach ($mt in [regex]::Matches($code, 'require\([''"]([\w.]+)[''"]\)')) {
+      $dep = $mt.Groups[1].Value
+      if ($dep -match '^(core|du|render|bootstrap)\.' -and -not $seen.ContainsKey($dep)) {
+        $queue.Enqueue($dep)
+      }
+    }
+  }
+  return $result
+}
+
 # Wrap modules in a require-shim that falls back to DU's real require (dkjson etc.).
+# Modules are auto-resolved from $entry; the $modules arg is ignored (kept for compat).
 function Build-Bundle([string[]]$modules, [string]$entry, [string]$bootLua) {
   $sb = [System.Text.StringBuilder]::new()
   [void]$sb.AppendLine("-- PVPHud bundle (build $build) -- GENERATED, do not edit")
@@ -25,7 +53,7 @@ function Build-Bundle([string[]]$modules, [string]$entry, [string]$bootLua) {
   [void]$sb.AppendLine("  if loader then local m = loader(); __cache[name] = m; return m end")
   [void]$sb.AppendLine("  return __realRequire(name)")
   [void]$sb.AppendLine("end")
-  foreach ($m in $modules) {
+  foreach ($m in (Resolve-Deps $entry)) {
     $file = Join-Path $srcDir (($m -replace '\.', '/') + ".lua")
     $code = (Get-Content $file -Raw).TrimEnd()
     [void]$sb.AppendLine("__mods['$m'] = function(...)")
