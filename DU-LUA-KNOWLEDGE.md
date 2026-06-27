@@ -98,14 +98,24 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
   `Nav = Navigator.new(system, core, unit)` in onStart; `onFlush` builds `targetAngularVelocity`
   from `pitchInput`/`rollInput`/`yawInput` and applies `Nav:setEngineCommand('torque', vec3(),
   angularAccel)` (driving angular velocity toward the target — **target is 0 with no input, so
-  this is what stabilizes**) plus `setEngineCommandFromThrottle('thrust analog longitudinal',
-  axisCommandId.longitudinal)`, vertical lift, `setBoosterCommand`; `onUpdate` calls
-  `Nav:update()`; action handlers map `forward`/`backward`→pitch, `left`/`right`→roll,
-  `up`/`down`→lift, `yawleft`/`yawright`→yaw, `speedup`/`speeddown` (**mouse wheel**) →
+  this is what stabilizes**); `onUpdate` calls `Nav:update()`; action handlers map
+  `forward`/`backward`→pitch, `left`/`right`→roll, `yawleft`/`yawright`→yaw,
+  `speedup`/`speeddown` (**mouse wheel**) →
   `Nav.axisCommandManager:updateThrottleCommand(axisCommandId.longitudinal, ±0.05)`.
   **`brakeInput` is a MAGIC global** the DU runtime reads to brake — set `1`/`0` (momentary), or
   toggle with `brakeInput = 1 - brakeInput`. `Navigator`/`axisCommandId`/`vec3` are DU globals
   injected on control units. (Don't apply such a HUD to a programming board — boards don't fly.)
+- **CURRENT vs stale Navigator API (the shipped `sample.conf` is OUTDATED — cost a test
+  session):** `Nav:setEngineCommandFromThrottle`, `Nav:composeLiftUpAcceleration`, and
+  `Nav:setBoosterCommand` from the old sample are **removed** (nil at runtime). The current
+  translation pattern (per ArchHUD/GFL, working today) is:
+  `local a = Nav.axisCommandManager:composeAxisAccelerationFromThrottle('thrust analog
+  longitudinal', axisCommandId.longitudinal); Nav:setEngineForceCommand('thrust analog
+  longitudinal', a, 1)` — same for `'thrust analog vertical'` with `axisCommandId.vertical`.
+  `Nav:setEngineCommand('torque', vec3(), angularAccel)` still works. **`unit.hideWidget()`**
+  in onStart hides the default control widget (it otherwise fights script throttle/brake).
+  When unsure of a Navigator/engine method, grep a CURRENT working HUD (`archhud/apclass.lua`,
+  `GFL_Pilot_2.3.conf`) — NOT the stale `sample.conf`.
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split
