@@ -11,21 +11,23 @@ end
 function M.build(state)
   local w, h = state.screenW, state.screenH
   local p = { state.css or "", svgOpen(w, h) }
+  -- Panels start below the game's own top-left/top-right HUD widgets.
+  local top = 120
 
   -- Weapons panel (top-left)
   local wn = #state.weapons
-  p[#p + 1] = widgets.panel(20, 20, 360, 36 + wn * 26)
-  p[#p + 1] = widgets.text(32, 44, "WEAPONS", "base", 18)
+  p[#p + 1] = widgets.panel(20, top, 360, 36 + wn * 26)
+  p[#p + 1] = widgets.text(32, top + 24, "WEAPONS", "base", 18)
   for i, wp in ipairs(state.weapons) do
-    local y = 44 + i * 26
+    local y = top + 24 + i * 26
     p[#p + 1] = widgets.text(32, y, (wp.class or "?") .. " " .. wp.label, wp.role, 15)
     p[#p + 1] = widgets.bar(190, y - 12, 170, 14, wp.barPct, wp.role)
   end
 
   -- Telemetry panel (top-right)
   local sx = w - 320
-  p[#p + 1] = widgets.panel(sx, 20, 300, 160)
-  p[#p + 1] = widgets.text(sx + 12, 44, "TELEMETRY", "base", 18)
+  p[#p + 1] = widgets.panel(sx, top, 300, 160)
+  p[#p + 1] = widgets.text(sx + 12, top + 24, "TELEMETRY", "base", 18)
   local st = state.stats
   local lines = {
     "FIRED   " .. st.shotsFired,
@@ -35,7 +37,7 @@ function M.build(state)
     "DAMAGE  " .. st.damage,
   }
   for i, ln in ipairs(lines) do
-    p[#p + 1] = widgets.text(sx + 12, 44 + i * 22, ln, "base", 15)
+    p[#p + 1] = widgets.text(sx + 12, top + 24 + i * 22, ln, "base", 15)
   end
   if state.graphSvg and state.graphSvg ~= "" then p[#p + 1] = state.graphSvg end
 

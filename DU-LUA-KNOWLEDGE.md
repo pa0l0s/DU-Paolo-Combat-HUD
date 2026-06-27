@@ -91,6 +91,21 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
   `getMaxShieldHitpoints`, `getResistances`, `setResistances(am,em,ki,th)`, `getResistancesPool`,
   `getResistancesCooldown`, `getStressRatioRaw`, `isVenting`, `startVenting`/`stopVenting`,
   `getVentingCooldown`.
+- **A HUD `.conf` on a control unit REPLACES the unit's entire Lua, including built-in flight
+  control** (cost a test session — PVPHud). A HUD on a remote controller / cockpit / seat must
+  **embed flight control** or the ship won't fly: it drifts/spins (no angular-velocity damping)
+  and WASD is dead. The standard minimal flight loop is the **official `sample.conf`**:
+  `Nav = Navigator.new(system, core, unit)` in onStart; `onFlush` builds `targetAngularVelocity`
+  from `pitchInput`/`rollInput`/`yawInput` and applies `Nav:setEngineCommand('torque', vec3(),
+  angularAccel)` (driving angular velocity toward the target — **target is 0 with no input, so
+  this is what stabilizes**) plus `setEngineCommandFromThrottle('thrust analog longitudinal',
+  axisCommandId.longitudinal)`, vertical lift, `setBoosterCommand`; `onUpdate` calls
+  `Nav:update()`; action handlers map `forward`/`backward`→pitch, `left`/`right`→roll,
+  `up`/`down`→lift, `yawleft`/`yawright`→yaw, `speedup`/`speeddown` (**mouse wheel**) →
+  `Nav.axisCommandManager:updateThrottleCommand(axisCommandId.longitudinal, ±0.05)`.
+  **`brakeInput` is a MAGIC global** the DU runtime reads to brake — set `1`/`0` (momentary), or
+  toggle with `brakeInput = 1 - brakeInput`. `Navigator`/`axisCommandId`/`vec3` are DU globals
+  injected on control units. (Don't apply such a HUD to a programming board — boards don't fly.)
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split
