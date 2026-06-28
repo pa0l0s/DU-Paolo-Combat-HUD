@@ -41,6 +41,7 @@ function M.start(env)
       brakeState = brakeOn and "BRAKE ON" or "BRAKE OFF",
       brakeRole = brakeOn and "caution" or "base",
       brakeDist = format.distance(flightCalc.brakeDistance(speedMps, F.maxBrake(), mass)),
+      maxBrake = string.format("%.0f kN", F.maxBrake() / 1000),
     }
 
     local shield = nil
