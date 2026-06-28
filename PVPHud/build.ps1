@@ -221,13 +221,12 @@ $(Indent $ctrlBundle 16)
                 local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
                 angularAccel = angularAccel - airAcceleration
                 Nav:setEngineCommand('torque', vec3(), angularAccel)
-                -- Translation from throttle (current Navigator API; old throttle helper removed)
+                -- Translation from throttle (current Navigator API; old throttle helper removed).
+                -- Thrust is applied EVERY frame, independent of braking (per GFL_Pilot) so the
+                -- throttle keeps following its set value while brakes are on.
                 local navCom = Nav.axisCommandManager
                 local longTags = 'thrust analog longitudinal'
-                -- Don't push forward while braking (otherwise thrust fights the brake).
-                if brakeInput ~= 1 then
-                  Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
-                end
+                Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
                 local vertTags = 'thrust analog vertical'
                 Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1)
                 -- Brake: must explicitly command the brake elements (retro-rockets / atmo
