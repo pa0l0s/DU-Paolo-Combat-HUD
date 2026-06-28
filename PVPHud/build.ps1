@@ -224,23 +224,29 @@ $(Indent $ctrlBundle 16)
                 -- setEngineCommand here -- it touches the linear-force channel with a
                 -- zero vector and zeroes the brake force.
                 Nav:setEngineTorqueCommand('torque', angularAccel, 1, 'airfoil', '', '', 1)
-                -- Translation from throttle (current Navigator API; old throttle helper removed).
-                -- Thrust is applied EVERY frame, independent of braking (per GFL_Pilot) so the
-                -- throttle keeps following its set value while brakes are on.
+                -- Full flight command sequence mirroring GFL_Pilot's byThrottle path,
+                -- in the same ORDER and with the same companion commands (lateral,
+                -- vertical priority subtags, brake, boosters). Issuing the complete set
+                -- is what lets the Navigator resolve the brake.
                 local navCom = Nav.axisCommandManager
+                -- longitudinal thrust (independent of braking)
                 local longTags = 'thrust analog longitudinal'
                 Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
-                local vertTags = 'thrust analog vertical'
-                Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1)
-                -- Brake: must explicitly command the brake elements (retro-rockets / atmo
-                -- brakes); setting brakeInput alone does nothing. Force opposes velocity at
-                -- getMaxBrake(); zero force when not braking releases them. (per GFL_Pilot)
+                -- brake (retro-rockets / atmo brakes): force opposes velocity at getMaxBrake()
                 local brakeVel = vec3(construct.getWorldVelocity())
                 local brakeForce = brakeInput * construct.getMaxBrake() * (-brakeVel:normalize())
                 if brakeVel:len() < 5 then
                   brakeForce = brakeInput * -(30 * brakeVel + brakeVel:normalize() + vec3(construct.getWorldGravity()))
                 end
                 Nav:setEngineForceCommand('brake', brakeForce)
+                -- lateral strafe
+                local latTags = 'thrust analog lateral'
+                Nav:setEngineForceCommand(latTags, navCom:composeAxisAccelerationFromThrottle(latTags, axisCommandId.lateral), 1)
+                -- vertical (with airfoil/ground priority subtags, per GFL)
+                local vertTags = 'thrust analog vertical'
+                Nav:setEngineForceCommand(vertTags, navCom:composeAxisAccelerationFromThrottle(vertTags, axisCommandId.vertical), 1, 'airfoil', 'ground', '', 1)
+                -- boosters / rockets (fires retro-rockets)
+                Nav:setBoosterCommand('rocket_engine')
                 if CtrlApp then CtrlApp.onFlush() end
         onUpdate:
             lua: |
