@@ -220,7 +220,10 @@ $(Indent $ctrlBundle 16)
                 local angularAccel = torqueFactor * (targetAngularVelocity - currentAngularVelocity)
                 local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
                 angularAccel = angularAccel - airAcceleration
-                Nav:setEngineCommand('torque', vec3(), angularAccel)
+                -- Modern split API (per ArchHUD/GFL). Do NOT mix the old combined
+                -- setEngineCommand here -- it touches the linear-force channel with a
+                -- zero vector and zeroes the brake force.
+                Nav:setEngineTorqueCommand('torque', angularAccel, 1, 'airfoil', '', '', 1)
                 -- Translation from throttle (current Navigator API; old throttle helper removed).
                 -- Thrust is applied EVERY frame, independent of braking (per GFL_Pilot) so the
                 -- throttle keeps following its set value while brakes are on.
@@ -289,6 +292,7 @@ $(Indent $ctrlBundle 16)
             args: [brake]
             lua: |
                 if brakeToggleMode then brakeInput = 1 - brakeInput else brakeInput = 1 end
+                system.print('[PVPHUD] brake='..tostring(brakeInput)..' getMaxBrake='..tostring(construct.getMaxBrake())..' N')
         onActionStop:
             args: [brake]
             lua: |
