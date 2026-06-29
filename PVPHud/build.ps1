@@ -114,9 +114,29 @@ $gunnerBoot = @"
 system.showScreen(1)
 GunnerApp = require('bootstrap_gunner').start({ system = system, construct = construct, library = library, weapon = weapon, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 unit.setTimer('dpsTick', 1)
--- Show the live default element widgets (radar + each gun), as in the default autoconf.
+-- Live default radar widget, as in the default autoconf.
 if radar_1 ~= nil then radar_1.showWidget() end
-if weapon ~= nil then for wi = 1, #weapon do if weapon[wi] ~= nil then weapon[wi].showWidget() end end end
+-- All guns on ONE widget panel (instead of one widget per gun).
+gunnerWeaponData = {}
+if weapon ~= nil and system.createWidgetPanel ~= nil then
+  local panel = system.createWidgetPanel('WEAPONS')
+  for wi = 1, #weapon do
+    if weapon[wi] ~= nil then
+      local w = system.createWidget(panel, weapon[wi].getWidgetType())
+      local d = system.createData(weapon[wi].getWidgetData())
+      system.addDataToWidget(d, w)
+      gunnerWeaponData[wi] = d
+    end
+  end
+end
+function refreshGunnerWeapons()
+  if weapon == nil then return end
+  for wi = 1, #weapon do
+    if weapon[wi] ~= nil and gunnerWeaponData[wi] ~= nil then
+      system.updateData(gunnerWeaponData[wi], weapon[wi].getWidgetData())
+    end
+  end
+end
 "@
 $gunnerBundle = Build-Bundle $gunnerModules 'bootstrap_gunner' $gunnerBoot
 
@@ -162,6 +182,7 @@ $(Indent $gunnerBundle 16)
         onUpdate:
             lua: |
                 if GunnerApp then GunnerApp.onUpdate() end
+                refreshGunnerWeapons()
     core:
         onStressChanged(stress):
             lua: |

@@ -68,6 +68,15 @@ function M.build(state)
     end
   end
 
+  -- Forward crosshair + firing-cone circle
+  local ch = state.crosshair
+  if ch then
+    if ch.radius and ch.radius > 2 then
+      p[#p + 1] = widgets.circle(ch.x, ch.y, ch.radius, "ready", 0.10)
+    end
+    p[#p + 1] = widgets.crosshair(ch.x, ch.y, "base", 10)
+  end
+
   if state.markersSvg and state.markersSvg ~= "" then p[#p + 1] = state.markersSvg end
   p[#p + 1] = "</svg>"
   return table.concat(p)

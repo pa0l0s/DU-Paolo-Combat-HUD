@@ -14,6 +14,7 @@ local function stubWeapon(o)
     getOptimalDistance = function() return 2000 end,
     getMaxDistance = function() return 5000 end,
     getOptimalTracking = function() return 20 end,
+    getOptimalAimingCone = function() return 5 end,
   }
 end
 
@@ -24,6 +25,7 @@ T.eq(r.class, "S", "class letter parsed from WeaponSmall")
 T.eq(r.operational, true, "operational from state==1")
 T.ok(math.abs(r.ammoPct - 0.8) < 1e-9, "ammoPct = ammo/maxAmmo")
 T.eq(W.firstSpec().optimalDistance, 2000, "firstSpec optimal distance")
+T.eq(W.firstSpec().aimingCone, 5, "firstSpec aiming cone")
 
 -- stub RadarPVPUnit
 local radar = {
