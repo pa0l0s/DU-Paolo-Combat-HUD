@@ -116,15 +116,23 @@ A Programming Board script is imported as JSON (Ctrl+V into the in-game Lua edit
   in onStart hides the default control widget (it otherwise fights script throttle/brake).
   When unsure of a Navigator/engine method, grep a CURRENT working HUD (`archhud/apclass.lua`,
   `GFL_Pilot_2.3.conf`) — NOT the stale `sample.conf`.
-- **Braking must be COMMANDED — setting `brakeInput` alone does nothing** in custom flight
-  (cost a test session — PVPHud; the HUD showed "BRAKE ON" but the retro-rockets never fired).
-  Per GFL_Pilot, command the brake elements each `onFlush`:
-  `local v = vec3(construct.getWorldVelocity()); local f = brakeInput * construct.getMaxBrake()
-  * (-v:normalize()); if v:len() < 5 then f = brakeInput * -(30*v + v:normalize() +
-  vec3(construct.getWorldGravity())) end; Nav:setEngineForceCommand('brake', f)`. The `'brake'`
-  tag takes a **force** vector (N, magnitude `getMaxBrake()`), opposing velocity; zero force
-  releases the brakes. This drives BOTH space retro-rockets and atmo brakes. (PVP flight
-  references: `GFL_Pilot_2.3.conf`, `FOX_Flight.conf`; ArchHUD is PVE-leaning.)
+- **Braking must be COMMANDED, and `setEngineForceCommand('brake', X)` takes an ACCELERATION,
+  NOT a force** (cost MANY test sessions — PVPHud). Setting `brakeInput` alone does nothing,
+  AND feeding the `'brake'` tag a `getMaxBrake()` force (≈15 MN) only decelerates to ~5 km/h
+  and never fully stops. The **official DU default formula** (use this — `flying_construct_MIN_HUD_paolo.conf`):
+  ```lua
+  local brakeSpeedFactor = 3   -- export
+  local brakeFlatFactor  = 1   -- export
+  local v    = vec3(core.getWorldVelocity())
+  local vdir = vec3(core.getWorldVelocity()):normalize()
+  local brakeAcceleration = -brakeInput * (brakeSpeedFactor * v + brakeFlatFactor * vdir)
+  Nav:setEngineForceCommand('brake', brakeAcceleration)
+  ```
+  The **flat factor** (`brakeFlatFactor * vdir`) is what brings the ship fully to 0 — without it
+  the speed-proportional term vanishes near zero speed and the ship coasts at low speed. Drives
+  BOTH space retro-rockets and atmo brakes. `getMaxBrake()` (N) is only useful for the brake-
+  DISTANCE readout (`v^2 / (2*getMaxBrake()/mass)`), NOT for commanding the brake. (PVP flight
+  refs: `GFL_Pilot_2.3.conf`, `FOX_Flight.conf`; default/clean ref: paolo; ArchHUD is PVE-leaning.)
 
 **Handler size:** large handlers are accepted (we ran ~25 KB onStart fine), but if a handler ever
 runs **only its first line and then silently stops**, suspect a size limit and minify/split
