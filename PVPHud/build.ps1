@@ -232,13 +232,17 @@ $(Indent $ctrlBundle 16)
                 -- longitudinal thrust (independent of braking)
                 local longTags = 'thrust analog longitudinal'
                 Nav:setEngineForceCommand(longTags, navCom:composeAxisAccelerationFromThrottle(longTags, axisCommandId.longitudinal), 1)
-                -- brake (retro-rockets / atmo brakes): force opposes velocity at getMaxBrake()
-                local brakeVel = vec3(construct.getWorldVelocity())
-                local brakeForce = brakeInput * construct.getMaxBrake() * (-brakeVel:normalize())
-                if brakeVel:len() < 5 then
-                  brakeForce = brakeInput * -(30 * brakeVel + brakeVel:normalize() + vec3(construct.getWorldGravity()))
-                end
-                Nav:setEngineForceCommand('brake', brakeForce)
+                -- Brake: official DU default formula (per paolo). setEngineForceCommand('brake')
+                -- takes an ACCELERATION (not getMaxBrake force). The flat factor brings the
+                -- ship fully to 0 (a force-based brake stalls around ~5 km/h).
+                local brakeSpeedFactor = 3 --export: brake force scales with brakeSpeedFactor * velocity
+                local brakeFlatFactor = 1 --export: flat brake force; brings the ship fully to a stop
+                brakeSpeedFactor = math.max(brakeSpeedFactor, 0.01)
+                brakeFlatFactor = math.max(brakeFlatFactor, 0.01)
+                local cVel = vec3(core.getWorldVelocity())
+                local cVelDir = vec3(core.getWorldVelocity()):normalize()
+                local brakeAcceleration = -brakeInput * (brakeSpeedFactor * cVel + brakeFlatFactor * cVelDir)
+                Nav:setEngineForceCommand('brake', brakeAcceleration)
                 -- lateral strafe
                 local latTags = 'thrust analog lateral'
                 Nav:setEngineForceCommand(latTags, navCom:composeAxisAccelerationFromThrottle(latTags, axisCommandId.lateral), 1)
@@ -298,7 +302,6 @@ $(Indent $ctrlBundle 16)
             args: [brake]
             lua: |
                 if brakeToggleMode then brakeInput = 1 - brakeInput else brakeInput = 1 end
-                system.print('[PVPHUD] brake='..tostring(brakeInput)..' getMaxBrake='..tostring(construct.getMaxBrake())..' N')
         onActionStop:
             args: [brake]
             lua: |

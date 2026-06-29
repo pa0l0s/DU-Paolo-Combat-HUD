@@ -6,7 +6,7 @@ local base = {
     speed = "1,200 km/h", mass = "420 t", maxSpeed = "30,000 km/h",
     throttleStr = "80%", throttleBar = 0.8, throttleRole = "ready",
     engineRatio = 0.4, outputG = "1.2 g",
-    brakeState = "BRAKE OFF", brakeRole = "base", brakeDist = "1.2km", maxBrake = "500 kN",
+    brakeState = "BRAKE OFF", brakeRole = "base", brakeDist = "1.2km",
   },
   shield = nil, markersSvg = "",
 }

@@ -27,10 +27,9 @@ function M.build(state)
   p[#p + 1] = widgets.bar(fx + 120, fy + 92, 286, 14, f.engineRatio, "caution")
   -- output acceleration in g
   p[#p + 1] = widgets.text(fx + 14, fy + 130, "OUTPUT  " .. f.outputG, "base", 15)
-  -- brake state + always-on brake distance + getMaxBrake diagnostic
+  -- brake state + always-on brake distance
   p[#p + 1] = widgets.text(fx + 14, fy + 158, f.brakeState, f.brakeRole or "base", 16)
-  p[#p + 1] = widgets.text(fx + 150, fy + 158, "DIST " .. f.brakeDist, "base", 15)
-  p[#p + 1] = widgets.text(fx + 300, fy + 158, "MAXBRK " .. f.maxBrake, "warn", 13)
+  p[#p + 1] = widgets.text(fx + 210, fy + 158, "DIST " .. f.brakeDist, "base", 15)
   -- mass / max speed
   p[#p + 1] = widgets.text(fx + 14, fy + 192, "MASS " .. f.mass, "base", 13)
   p[#p + 1] = widgets.text(fx + 220, fy + 192, "MAX " .. f.maxSpeed, "base", 13)
