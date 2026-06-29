@@ -114,6 +114,9 @@ $gunnerBoot = @"
 system.showScreen(1)
 GunnerApp = require('bootstrap_gunner').start({ system = system, construct = construct, library = library, weapon = weapon, radar = radar_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 unit.setTimer('dpsTick', 1)
+-- Show the live default element widgets (radar + each gun), as in the default autoconf.
+if radar_1 ~= nil then radar_1.showWidget() end
+if weapon ~= nil then for wi = 1, #weapon do if weapon[wi] ~= nil then weapon[wi].showWidget() end end end
 "@
 $gunnerBundle = Build-Bundle $gunnerModules 'bootstrap_gunner' $gunnerBoot
 
