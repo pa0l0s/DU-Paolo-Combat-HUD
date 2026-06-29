@@ -23,8 +23,11 @@ withTarget.target = {
   angular = "15", angularRole = "ready", hitPct = 80, hitRole = "ready",
   speed = "?", maxSpeed = "30,000 km/h", closing = "-",
 }
+withTarget.crosshair = { x = 960, y = 540, radius = 40 }
 local wt = gv.build(withTarget)
 T.ok(wt:find("Enemy Ship", 1, true) ~= nil, "target name shown")
 T.ok(wt:find("042", 1, true) ~= nil, "target id shown")
 T.ok(wt:find("UNIDENTIFIED", 1, true) ~= nil, "unidentified flagged")
 T.ok(wt:find("DIST", 1, true) ~= nil, "distance row present")
+T.ok(wt:find("<circle", 1, true) ~= nil, "firing-cone circle rendered")
+T.ok(wt:find("<line", 1, true) ~= nil, "crosshair lines rendered")

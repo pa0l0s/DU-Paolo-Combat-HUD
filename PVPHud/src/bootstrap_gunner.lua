@@ -107,9 +107,36 @@ function M.start(env)
       damage = format.compact(dps.damageDealt),
     }
 
+    -- Forward crosshair + firing-cone circle. Project a point ahead of the ship
+    -- (construct forward) and a point offset by the weapon aiming cone; the screen
+    -- gap between them is the cone radius. aimingCone already includes skills/talents.
+    local crosshair = nil
+    local cn = env.construct
+    if cn and cn.getWorldPosition and cn.getWorldOrientationForward and cn.getWorldOrientationUp then
+      local function arr(t) return { t[1] or t.x or 0, t[2] or t.y or 0, t[3] or t.z or 0 } end
+      local function add3(a, b) return { a[1] + b[1], a[2] + b[2], a[3] + b[3] } end
+      local function scl(a, s) return { a[1] * s, a[2] * s, a[3] * s } end
+      local pos, fwd, up = arr(cn.getWorldPosition()), arr(cn.getWorldOrientationForward()), arr(cn.getWorldOrientationUp())
+      local D = 1000
+      local center = add3(pos, scl(fwd, D))
+      local cs = C.toScreen({ x = center[1], y = center[2], z = center[3] }, sw, sh)
+      if cs then
+        local radius = 0
+        local coneDeg = (spec and spec.aimingCone) or 0
+        if coneDeg > 0 then
+          local cr = math.rad(coneDeg)
+          local edgeDir = add3(scl(fwd, math.cos(cr)), scl(up, math.sin(cr)))
+          local edge = add3(pos, scl(edgeDir, D))
+          local es = C.toScreen({ x = edge[1], y = edge[2], z = edge[3] }, sw, sh)
+          if es then radius = math.sqrt((es.x - cs.x) ^ 2 + (es.y - cs.y) ^ 2) end
+        end
+        crosshair = { x = cs.x, y = cs.y, radius = radius }
+      end
+    end
+
     local html = gunnerView.build({
       screenW = sw, screenH = sh, css = theme.css(),
-      weapons = wlist, target = target, stats = stats,
+      weapons = wlist, target = target, stats = stats, crosshair = crosshair,
       graphSvg = "", markersSvg = arLayer.build(markers),
     })
     sys.setScreen(html)

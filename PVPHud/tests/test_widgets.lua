@@ -22,3 +22,12 @@ T.ok(g:find("points=", 1, true) ~= nil, "graph has points attr")
 T.eq(W.graph(0, 0, 100, 50, { 0.5 }, "base"), "", "graph needs >= 2 points")
 
 T.eq(W.escape("a&b<c>"), "a&amp;b&lt;c&gt;", "escape ampersand and brackets")
+
+-- circle (firing cone) + crosshair
+local circ = W.circle(100, 200, 40, "ready", 0.1)
+T.ok(circ:find('<circle', 1, true) ~= nil, "circle element")
+T.ok(circ:find(theme.color("ready"), 1, true) ~= nil, "circle uses role color")
+T.ok(circ:find('r="40.0"', 1, true) ~= nil, "circle radius")
+local cross = W.crosshair(50, 60, "base", 10)
+local _, lines = cross:gsub("<line", "")
+T.eq(lines, 2, "crosshair has two lines")

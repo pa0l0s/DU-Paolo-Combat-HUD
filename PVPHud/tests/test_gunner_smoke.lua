@@ -12,6 +12,7 @@ local function stubWeapon()
     getOptimalDistance = function() return 2000 end,
     getMaxDistance = function() return 5000 end,
     getOptimalTracking = function() return 20 end,
+    getOptimalAimingCone = function() return 5 end,
   }
 end
 
@@ -32,7 +33,11 @@ local radar = {
 }
 -- getPointOnScreen lives on `library` in DU, NOT on `construct`.
 local library = { getPointOnScreen = function(_) return { 0.5, 0.5, 1 } end }
-local construct = {}
+local construct = {
+  getWorldPosition = function() return { 0, 0, 0 } end,
+  getWorldOrientationForward = function() return { 0, 0, 1 } end,
+  getWorldOrientationUp = function() return { 0, 1, 0 } end,
+}
 local sys = stubs.newSystem()
 local db = stubs.newDatabank()
 local codec = {
@@ -53,6 +58,7 @@ T.ok(html:find("Foe", 1, true) ~= nil, "locked target shown")
 T.ok(html:find("242", 1, true) ~= nil, "target id marker / panel (4242 % 1000 = 242)")
 -- AR marker box (20x20) only renders when world->screen projection succeeds via library
 T.ok(html:find('width="20" height="20"', 1, true) ~= nil, "AR marker rendered via library.getPointOnScreen")
+T.ok(html:find('<line', 1, true) ~= nil, "forward crosshair rendered (ship-forward projection)")
 T.ok(db.hasKey("pilotTarget"), "channel seeded")
 
 -- event handlers don't error and update telemetry

@@ -33,6 +33,24 @@ function M.bar(x, y, w, h, pct, role)
     x, y, w, h, hex, x, y, math.floor(w * pct), h, hex)
 end
 
+-- Half-transparent circle (e.g. weapon firing cone).
+function M.circle(x, y, r, role, fillOpacity)
+  local hex = theme.color(role or "base")
+  return string.format(
+    '<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" fill-opacity="%.2f" stroke="%s" stroke-opacity="0.5" stroke-width="1.5"/>',
+    x, y, r, hex, fillOpacity or 0.12, hex)
+end
+
+-- Small '+' crosshair centered on (x,y).
+function M.crosshair(x, y, role, size)
+  size = size or 10
+  local hex = theme.color(role or "base")
+  return string.format(
+    '<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>'
+    .. '<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>',
+    x - size, y, x + size, y, hex, x, y - size, x, y + size, hex)
+end
+
 -- Polyline graph from y-values in 0..1 across a box.
 function M.graph(x, y, w, h, points, role)
   if #points < 2 then return "" end

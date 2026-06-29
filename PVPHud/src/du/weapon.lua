@@ -28,6 +28,7 @@ function M.new(weapons)
       optimalDistance = w.getOptimalDistance(),
       maxDistance = w.getMaxDistance(),
       optimalTracking = w.getOptimalTracking(),
+      aimingCone = w.getOptimalAimingCone and w.getOptimalAimingCone() or 0,
     }
   end
 
