@@ -200,7 +200,7 @@ $ctrlModules = @(
 )
 $ctrlBoot = @"
 system.showScreen(1)
-CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, unit = unit, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, unit = unit, library = library, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 "@
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 
@@ -229,6 +229,8 @@ $(Indent $ctrlBundle 16)
                 yawInput = 0
                 brakeInput = 0
                 dampingOff = 0 -- 0 = STABLE (rotation auto-damps), 1 = SMOOTH (holds spin)
+                warnedLast = false
+                warnSound = 'warning.mp3' --export: sound (in NQ/DualUniverse/audio) when braking with throttle
                 local brakeToggle = true --export: Brake key toggles on/off (true) or is momentary hold (false)
                 brakeToggleMode = brakeToggle
     system:
@@ -285,7 +287,11 @@ $(Indent $ctrlBundle 16)
         onUpdate:
             lua: |
                 Nav:update()
-                if CtrlApp then CtrlApp.onUpdate(brakeInput, dampingOff) end
+                -- Warn (message + sound) when braking while the throttle still commands thrust.
+                local warnBT = (brakeInput == 1 and unit.getThrottle() > 0)
+                if warnBT and not warnedLast then system.playSound(warnSound) end
+                warnedLast = warnBT
+                if CtrlApp then CtrlApp.onUpdate(brakeInput, dampingOff, warnBT) end
         onActionStart:
             args: [forward]
             lua: pitchInput = pitchInput - 1

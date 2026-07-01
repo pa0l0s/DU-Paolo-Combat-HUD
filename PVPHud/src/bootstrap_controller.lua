@@ -8,6 +8,7 @@ local ballistics= require("core.ballistics")
 local flightCalc= require("core.flight")
 local duShield  = require("du.shield")
 local duFlight  = require("du.flight")
+local duConstruct = require("du.construct")
 local controllerView = require("render.controller_view")
 
 local M = {}
@@ -18,9 +19,10 @@ function M.start(env)
   local sys = env.system
   local S = duShield.new(env.shield)
   local F = duFlight.new(env.construct, env.unit)
+  local C = duConstruct.new(env.library) -- getPointOnScreen projection
   local ch = channel.new(env.db, env.codec)
   ch.seed()
-  local app = { autoResist = true, shieldAdapter = S, _brake = 0, _damping = 0 }
+  local app = { autoResist = true, shieldAdapter = S, _brake = 0, _damping = 0, _warn = false }
 
   function app.render()
     local sw, sh = sys.getScreenWidth(), sys.getScreenHeight()
@@ -70,9 +72,27 @@ function M.start(env)
       }
     end
 
+    -- Move-direction (prograde) marker: project a point along the velocity vector.
+    local moveMarker = nil
+    local cn = env.construct
+    if cn and cn.getWorldPosition and cn.getWorldVelocity then
+      local function arr(t) return { t[1] or t.x or 0, t[2] or t.y or 0, t[3] or t.z or 0 } end
+      local vel = arr(cn.getWorldVelocity())
+      local vl = math.sqrt(vel[1] ^ 2 + vel[2] ^ 2 + vel[3] ^ 2)
+      if vl > 1 then
+        local pos = arr(cn.getWorldPosition())
+        local D = 1000
+        local scr = C.toScreen(
+          { x = pos[1] + vel[1] / vl * D, y = pos[2] + vel[2] / vl * D, z = pos[3] + vel[3] / vl * D },
+          sw, sh)
+        if scr then moveMarker = { x = scr.x, y = scr.y } end
+      end
+    end
+
     local html = controllerView.build({
       screenW = sw, screenH = sh, css = theme.css(),
       flight = flight, shield = shield, markersSvg = "",
+      moveMarker = moveMarker, warn = app._warn,
     })
     sys.setScreen(html)
     return html
@@ -92,9 +112,10 @@ function M.start(env)
   end
 
   -- brake/damping = the live brakeInput / dampingOff globals from the conf handlers.
-  function app.onUpdate(brake, damping)
+  function app.onUpdate(brake, damping, warn)
     app._brake = brake or 0
     app._damping = damping or 0
+    app._warn = warn and true or false
     app.render()
   end
   function app.toggleAuto() app.autoResist = not app.autoResist end

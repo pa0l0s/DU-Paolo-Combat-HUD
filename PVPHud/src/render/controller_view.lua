@@ -51,6 +51,18 @@ function M.build(state)
     p[#p + 1] = widgets.text(sx + 170, sy + 180, s.auto, "ready", 14)
   end
 
+  -- Move-direction (prograde) marker: a small ring where the ship is actually heading.
+  local mm = state.moveMarker
+  if mm then
+    p[#p + 1] = widgets.circle(mm.x, mm.y, 10, "ready", 0)
+    p[#p + 1] = widgets.circle(mm.x, mm.y, 2, "ready", 1)
+  end
+
+  -- Warning: braking while the throttle still commands thrust.
+  if state.warn then
+    p[#p + 1] = widgets.text(w / 2 - 150, h / 2 - 140, "! BRAKE + THROTTLE !", "threat", 24)
+  end
+
   if state.markersSvg and state.markersSvg ~= "" then p[#p + 1] = state.markersSvg end
   p[#p + 1] = "</svg>"
   return table.concat(p)

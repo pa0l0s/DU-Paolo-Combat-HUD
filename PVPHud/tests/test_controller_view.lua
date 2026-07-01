@@ -10,9 +10,12 @@ local base = {
     rotMode = "SMOOTH", rotRole = "caution",
   },
   shield = nil, markersSvg = "",
+  moveMarker = { x = 960, y = 540 }, warn = true,
 }
 
 local noShield = cv.build(base)
+T.ok(noShield:find("<circle", 1, true) ~= nil, "move-direction marker rendered")
+T.ok(noShield:find("BRAKE + THROTTLE", 1, true) ~= nil, "brake+throttle warning shown")
 T.ok(noShield:find("<style>Z</style>", 1, true) ~= nil, "includes css")
 T.ok(noShield:find("<svg", 1, true) ~= nil, "opens svg")
 T.ok(noShield:find("</svg>", 1, true) ~= nil, "closes svg")
