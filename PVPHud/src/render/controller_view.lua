@@ -18,6 +18,7 @@ function M.build(state)
   local fx, fy = w / 2 - 210, h - 250
   p[#p + 1] = widgets.panel(fx, fy, 420, 220)
   p[#p + 1] = widgets.text(fx + 14, fy + 26, "FLIGHT", "base", 18)
+  p[#p + 1] = widgets.text(fx + 300, fy + 26, f.rotMode or "STABLE", f.rotRole or "base", 15)
   p[#p + 1] = widgets.text(fx + 14, fy + 50, "SPEED   " .. f.speed, "base", 15)
   -- throttle SET
   p[#p + 1] = widgets.text(fx + 14, fy + 78, "THR " .. f.throttleStr, f.throttleRole or "base", 15)

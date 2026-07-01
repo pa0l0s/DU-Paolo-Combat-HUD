@@ -48,11 +48,13 @@ T.ok(html:find("THR 80%", 1, true) ~= nil, "throttle set shown")
 T.ok(html:find("OUTPUT  1.0 g", 1, true) ~= nil, "output g from acceleration")
 T.ok(db.hasKey("pilotTarget"), "channel seeded")
 
--- brake state reflects the brakeInput passed to onUpdate
-app.onUpdate(1)
+-- brake + rotation mode reflect the globals passed to onUpdate(brake, damping)
+app.onUpdate(1, 0)
 T.ok(sys._last.screen:find("BRAKE ON", 1, true) ~= nil, "brake ON shown when braking")
-app.onUpdate(0)
+T.ok(sys._last.screen:find("STABLE", 1, true) ~= nil, "STABLE shown when damping on")
+app.onUpdate(0, 1)
 T.ok(sys._last.screen:find("BRAKE OFF", 1, true) ~= nil, "brake OFF shown when not braking")
+T.ok(sys._last.screen:find("SMOOTH", 1, true) ~= nil, "SMOOTH shown when damping off")
 
 -- auto-resist on flush: stress is all-antimatter, so resist shifts toward index 1
 app.autoResist = true

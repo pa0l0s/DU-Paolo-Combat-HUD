@@ -20,7 +20,7 @@ function M.start(env)
   local F = duFlight.new(env.construct, env.unit)
   local ch = channel.new(env.db, env.codec)
   ch.seed()
-  local app = { autoResist = true, shieldAdapter = S, _brake = 0 }
+  local app = { autoResist = true, shieldAdapter = S, _brake = 0, _damping = 0 }
 
   function app.render()
     local sw, sh = sys.getScreenWidth(), sys.getScreenHeight()
@@ -29,6 +29,7 @@ function M.start(env)
     local speedMps = F.speed()
     local throttle = F.throttlePct()
     local brakeOn = app._brake == 1
+    local smooth = app._damping == 1
     local flight = {
       speed = format.speed(speedMps),
       mass = format.compact(mass / 1000) .. " t",
@@ -41,6 +42,8 @@ function M.start(env)
       brakeState = brakeOn and "BRAKE ON" or "BRAKE OFF",
       brakeRole = brakeOn and "caution" or "base",
       brakeDist = format.distance(flightCalc.brakeDistance(speedMps, F.maxBrake(), mass)),
+      rotMode = smooth and "SMOOTH" or "STABLE",
+      rotRole = smooth and "caution" or "base",
     }
 
     local shield = nil
@@ -88,8 +91,12 @@ function M.start(env)
     end
   end
 
-  -- brake = the live brakeInput global (0/1), passed in from the conf handler.
-  function app.onUpdate(brake) app._brake = brake or 0; app.render() end
+  -- brake/damping = the live brakeInput / dampingOff globals from the conf handlers.
+  function app.onUpdate(brake, damping)
+    app._brake = brake or 0
+    app._damping = damping or 0
+    app.render()
+  end
   function app.toggleAuto() app.autoResist = not app.autoResist end
   function app.toggleVent()
     if not S.present() then return end
