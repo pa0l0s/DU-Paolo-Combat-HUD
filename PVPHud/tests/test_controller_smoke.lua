@@ -17,12 +17,14 @@ local shield = {
 }
 local construct = {
   getWorldVelocity = function() return { 100, 0, 0 } end,
+  getWorldPosition = function() return { 0, 0, 0 } end,
   getMass = function() return 50000 end,
   getWorldAcceleration = function() return { 9.80665, 0, 0 } end, -- 1 g
   getMaxBrake = function() return 200000 end,
   getOrientationForward = function() return { 0, 1, 0 } end,
   getMaxThrustAlongAxis = function() return { 1000000, 1000000 } end,
 }
+local library = { getPointOnScreen = function(_) return { 0.5, 0.5, 1 } end }
 local unit = {
   getThrottle = function() return 80 end,
   getEngineThrust = function() return { 400000, 0, 0 } end, -- 40% of max -> warmup
@@ -35,13 +37,14 @@ local codec = {
 }
 
 local app = boot.start({
-  system = sys, construct = construct, unit = unit, shield = shield,
+  system = sys, construct = construct, unit = unit, library = library, shield = shield,
   db = db, codec = codec, build = 9,
 })
 
 local html = app.render()
 T.ok(type(html) == "string", "render returns html")
 T.ok(html == sys._last.screen, "setScreen received html")
+T.ok(html:find("<circle", 1, true) ~= nil, "move-direction marker rendered (velocity projection)")
 T.ok(html:find("FLIGHT", 1, true) ~= nil, "flight panel present")
 T.ok(html:find("SHIELD", 1, true) ~= nil, "shield panel present")
 T.ok(html:find("THR 80%", 1, true) ~= nil, "throttle set shown")
@@ -55,6 +58,12 @@ T.ok(sys._last.screen:find("STABLE", 1, true) ~= nil, "STABLE shown when damping
 app.onUpdate(0, 1)
 T.ok(sys._last.screen:find("BRAKE OFF", 1, true) ~= nil, "brake OFF shown when not braking")
 T.ok(sys._last.screen:find("SMOOTH", 1, true) ~= nil, "SMOOTH shown when damping off")
+
+-- brake+throttle warning renders when the warn flag is passed
+app.onUpdate(1, 0, true)
+T.ok(sys._last.screen:find("BRAKE + THROTTLE", 1, true) ~= nil, "warning shown when braking with throttle")
+app.onUpdate(1, 0, false)
+T.ok(sys._last.screen:find("BRAKE + THROTTLE", 1, true) == nil, "warning hidden otherwise")
 
 -- auto-resist on flush: stress is all-antimatter, so resist shifts toward index 1
 app.autoResist = true
