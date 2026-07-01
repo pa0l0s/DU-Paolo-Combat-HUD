@@ -228,6 +228,7 @@ $(Indent $ctrlBundle 16)
                 rollInput = 0
                 yawInput = 0
                 brakeInput = 0
+                dampingOff = 0 -- 0 = STABLE (rotation auto-damps), 1 = SMOOTH (holds spin)
                 local brakeToggle = true --export: Brake key toggles on/off (true) or is momentary hold (false)
                 brakeToggleMode = brakeToggle
     system:
@@ -239,8 +240,13 @@ $(Indent $ctrlBundle 16)
                 local worldForward = vec3(construct.getWorldOrientationForward())
                 local worldRight = vec3(construct.getWorldOrientationRight())
                 local currentAngularVelocity = vec3(construct.getWorldAngularVelocity())
-                local targetAngularVelocity = pitchInput * worldRight + rollInput * worldForward + yawInput * worldUp
-                targetAngularVelocity = rotationSpeed * targetAngularVelocity:normalize()
+                local targetAngularVelocity
+                if dampingOff == 1 and pitchInput == 0 and rollInput == 0 and yawInput == 0 then
+                  -- SMOOTH mode, no input: hold the current spin (no auto-slowdown), per GFL_Pilot
+                  targetAngularVelocity = currentAngularVelocity
+                else
+                  targetAngularVelocity = rotationSpeed * (pitchInput * worldRight + rollInput * worldForward + yawInput * worldUp):normalize()
+                end
                 local angularAccel = torqueFactor * (targetAngularVelocity - currentAngularVelocity)
                 local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
                 angularAccel = angularAccel - airAcceleration
@@ -279,7 +285,7 @@ $(Indent $ctrlBundle 16)
         onUpdate:
             lua: |
                 Nav:update()
-                if CtrlApp then CtrlApp.onUpdate(brakeInput) end
+                if CtrlApp then CtrlApp.onUpdate(brakeInput, dampingOff) end
         onActionStart:
             args: [forward]
             lua: pitchInput = pitchInput - 1
@@ -304,6 +310,10 @@ $(Indent $ctrlBundle 16)
         onActionStop:
             args: [right]
             lua: rollInput = rollInput - 1
+        onActionStart:
+            args: [up]
+            lua: |
+                dampingOff = 1 - dampingOff
         onActionLoop:
             args: [up]
             lua: Nav.axisCommandManager:updateThrottleCommand(axisCommandId.vertical, 0.05)

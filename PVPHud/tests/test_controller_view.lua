@@ -7,6 +7,7 @@ local base = {
     throttleStr = "80%", throttleBar = 0.8, throttleRole = "ready",
     engineRatio = 0.4, outputG = "1.2 g",
     brakeState = "BRAKE OFF", brakeRole = "base", brakeDist = "1.2km",
+    rotMode = "SMOOTH", rotRole = "caution",
   },
   shield = nil, markersSvg = "",
 }
@@ -21,6 +22,7 @@ T.ok(noShield:find("THR 80%", 1, true) ~= nil, "throttle set shown")
 T.ok(noShield:find("OUTPUT  1.2 g", 1, true) ~= nil, "output g shown")
 T.ok(noShield:find("BRAKE OFF", 1, true) ~= nil, "brake state shown")
 T.ok(noShield:find("DIST 1.2km", 1, true) ~= nil, "brake distance shown")
+T.ok(noShield:find("SMOOTH", 1, true) ~= nil, "rotation mode shown")
 
 local withShield = {}
 for k, v in pairs(base) do withShield[k] = v end
