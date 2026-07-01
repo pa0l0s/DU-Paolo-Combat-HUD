@@ -9,11 +9,11 @@ function M.escape(s)
   return s
 end
 
--- Translucent neon glass panel.
+-- Frame only: no background fill, light/transparent neon border.
 function M.panel(x, y, w, h)
   return string.format(
-    '<rect x="%d" y="%d" width="%d" height="%d" fill="%s" fill-opacity="0.55" stroke="%s" stroke-opacity="0.6"/>',
-    x, y, w, h, theme.color("panel"), theme.color("base"))
+    '<rect x="%d" y="%d" width="%d" height="%d" fill="none" stroke="%s" stroke-opacity="0.25" stroke-width="1"/>',
+    x, y, w, h, theme.color("base"))
 end
 
 -- Neon SVG text (bright fill; glow is carried by the bright palette).

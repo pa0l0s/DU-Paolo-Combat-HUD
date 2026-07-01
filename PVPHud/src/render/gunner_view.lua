@@ -26,8 +26,8 @@ function M.build(state)
 
   -- Telemetry panel (right side, mid-screen: top-right is used by game windows)
   local sx = w - 320
-  local ty = h / 2 - 80
-  p[#p + 1] = widgets.panel(sx, ty, 300, 160)
+  local ty = h / 2 - 100
+  p[#p + 1] = widgets.panel(sx, ty, 300, 250)
   p[#p + 1] = widgets.text(sx + 12, ty + 24, "TELEMETRY", "base", 18)
   local st = state.stats
   local lines = {
@@ -40,7 +40,12 @@ function M.build(state)
   for i, ln in ipairs(lines) do
     p[#p + 1] = widgets.text(sx + 12, ty + 24 + i * 22, ln, "base", 15)
   end
-  if state.graphSvg and state.graphSvg ~= "" then p[#p + 1] = state.graphSvg end
+  -- Damage-per-second chart (damage dealt over time)
+  local dmg = state.damagePoints
+  if dmg and #dmg >= 2 then
+    p[#p + 1] = widgets.text(sx + 12, ty + 160, "DAMAGE/s", "threat", 13)
+    p[#p + 1] = widgets.graph(sx + 12, ty + 170, 276, 60, dmg, "threat")
+  end
 
   -- Target panel (center-top)
   local t = state.target
