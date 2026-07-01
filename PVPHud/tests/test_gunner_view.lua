@@ -4,7 +4,7 @@ local base = {
   screenW = 1920, screenH = 1080, css = "<style>X</style>",
   weapons = { { label = "FIRING", role = "ready", barPct = 0.8, class = "S" } },
   stats = { shotsFired = 3, shotsHit = 2, accuracy = "67%", peakDps = "1.2k", damage = "5.0k" },
-  graphSvg = "", markersSvg = "",
+  damagePoints = { 0, 0.2, 0.5, 1, 0.3 }, markersSvg = "",
 }
 
 local noTarget = gv.build(base)
@@ -13,6 +13,8 @@ T.ok(noTarget:find("<svg", 1, true) ~= nil, "opens an svg overlay")
 T.ok(noTarget:find("</svg>", 1, true) ~= nil, "closes the svg overlay")
 T.ok(noTarget:find("WEAPONS", 1, true) ~= nil, "weapons header")
 T.ok(noTarget:find("TELEMETRY", 1, true) ~= nil, "telemetry header")
+T.ok(noTarget:find("DAMAGE/s", 1, true) ~= nil, "damage chart label")
+T.ok(noTarget:find("<polyline", 1, true) ~= nil, "damage chart polyline rendered")
 T.ok(noTarget:find("FIRING", 1, true) ~= nil, "weapon label shown")
 
 local withTarget = {}

@@ -134,10 +134,17 @@ function M.start(env)
       end
     end
 
+    -- Damage-dealt chart: normalize the rolling caused-damage series to 0..1.
+    local caused = dps.series("caused")
+    local maxV = 1
+    for _, v in ipairs(caused) do if v > maxV then maxV = v end end
+    local damagePoints = {}
+    for i, v in ipairs(caused) do damagePoints[i] = v / maxV end
+
     local html = gunnerView.build({
       screenW = sw, screenH = sh, css = theme.css(),
       weapons = wlist, target = target, stats = stats, crosshair = crosshair,
-      graphSvg = "", markersSvg = arLayer.build(markers),
+      damagePoints = damagePoints, markersSvg = arLayer.build(markers),
     })
     sys.setScreen(html)
     return html
