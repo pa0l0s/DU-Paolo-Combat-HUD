@@ -236,7 +236,7 @@ $(Indent $ctrlBundle 16)
     system:
         onFlush:
             lua: |
-                local rotationSpeed = 2 --export: flight rotation speed (rad/s)
+                local rotationSpeed = 1 --export: WASD rotation rate (rad/s); lower = less sensitive
                 local torqueFactor = 1 --export: torque factor to reach rotationSpeed (high = unstable)
                 local worldUp = vec3(construct.getWorldOrientationUp())
                 local worldForward = vec3(construct.getWorldOrientationForward())
