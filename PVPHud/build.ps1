@@ -236,8 +236,9 @@ $(Indent $ctrlBundle 16)
     system:
         onFlush:
             lua: |
-                local rotationSpeed = 1 --export: WASD rotation rate (rad/s); lower = less sensitive
-                local torqueFactor = 1 --export: torque factor to reach rotationSpeed (high = unstable)
+                local rotationSpeed = 0.5 --export: WASD rotation rate (rad/s); lower = less sensitive
+                local torqueFactor = 1 --export: STABLE-mode responsiveness/damping (high = snappier/less stable)
+                local smoothTorque = 0.04 --export: SMOOTH-mode input strength; low = gentle fine-aim nudges
                 local worldUp = vec3(construct.getWorldOrientationUp())
                 local worldForward = vec3(construct.getWorldOrientationForward())
                 local worldRight = vec3(construct.getWorldOrientationRight())
@@ -249,7 +250,9 @@ $(Indent $ctrlBundle 16)
                 else
                   targetAngularVelocity = rotationSpeed * (pitchInput * worldRight + rollInput * worldForward + yawInput * worldUp):normalize()
                 end
-                local angularAccel = torqueFactor * (targetAngularVelocity - currentAngularVelocity)
+                -- SMOOTH mode nudges the spin gently (low torque); STABLE mode is responsive.
+                local torqueFac = (dampingOff == 1) and smoothTorque or torqueFactor
+                local angularAccel = torqueFac * (targetAngularVelocity - currentAngularVelocity)
                 local airAcceleration = vec3(construct.getWorldAirFrictionAngularAcceleration())
                 angularAccel = angularAccel - airAcceleration
                 -- Modern split API (per ArchHUD/GFL). Do NOT mix the old combined
