@@ -15,6 +15,8 @@ return {
   "test_controller_adapters",
   "test_gunner_smoke",
   "test_resist",
+  "test_core_fuel",
+  "test_du_fuel",
   "test_controller_view",
   "test_controller_smoke",
   "test_flight",

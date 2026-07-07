@@ -31,6 +31,18 @@ function M.speed(mps)
   return M.groupThousands(math.floor(mps * 3.6)) .. " km/h"
 end
 
+-- seconds -> "45s" / "4m30s" / "1h05m". nil/inf/negative -> "--".
+function M.duration(s)
+  if type(s) ~= "number" or s ~= s or s == math.huge or s < 0 then return "--" end
+  s = math.floor(s + 0.5)
+  if s >= 3600 then
+    return string.format("%dh%02dm", math.floor(s / 3600), math.floor((s % 3600) / 60))
+  elseif s >= 60 then
+    return string.format("%dm%02ds", math.floor(s / 60), s % 60)
+  end
+  return s .. "s"
+end
+
 -- 1500 -> "1.5k", 2300000 -> "2.3m".
 function M.compact(n)
   if n < 1000 then
