@@ -35,9 +35,19 @@ local codec = {
   encode = function(t) return next(t) and "json:ne" or "json:empty" end,
   decode = function(s) return s == "json:ne" and { 1 } or {} end,
 }
+-- A space tank running low (8% / 30s) and a healthy rocket tank.
+local function fuelTank(pct, tl)
+  return { getWidgetData = function() return string.format("p=%d;t=%d", pct, tl) end }
+end
+local json = { decode = function(s)
+  local p, t = s:match("p=([%d%.]+);t=([%d%.]+)")
+  return { percentage = tonumber(p), timeLeft = tonumber(t) }
+end }
 
 local app = boot.start({
   system = sys, construct = construct, unit = unit, library = library, shield = shield,
+  fuel = { space = { fuelTank(8, 30) }, rocket = { fuelTank(90, 6000) } }, json = json,
+  fuelLowLevel = 0.2, fuelLowTime = 120,
   db = db, codec = codec, build = 9,
 })
 
@@ -50,6 +60,11 @@ T.ok(html:find("SHIELD", 1, true) ~= nil, "shield panel present")
 T.ok(html:find("THR 80%", 1, true) ~= nil, "throttle set shown")
 T.ok(html:find("OUTPUT  1.0 g", 1, true) ~= nil, "output g from acceleration")
 T.ok(db.hasKey("pilotTarget"), "channel seeded")
+T.ok(html:find("FUEL", 1, true) ~= nil, "fuel block rendered from tank widget data")
+T.ok(html:find("SPACE", 1, true) ~= nil, "space fuel row present")
+T.ok(html:find("ROCKET", 1, true) ~= nil, "rocket fuel row present")
+T.ok(html:find("LOW FUEL", 1, true) ~= nil, "low-fuel warning when space tank low")
+T.eq(app.lowFuel, true, "lowFuel flag set for conf sound trigger")
 
 -- brake + rotation mode reflect the globals passed to onUpdate(brake, damping)
 app.onUpdate(1, 0)

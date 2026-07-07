@@ -195,12 +195,14 @@ Write-Conf "gunner_seat_hud.conf" $gunnerConf
 # --- Remote Controller HUD target ---
 $ctrlModules = @(
   'core.format', 'core.theme', 'core.channel', 'core.resist', 'core.ballistics',
-  'du.shield', 'du.flight', 'render.widgets', 'render.controller_view',
-  'bootstrap_controller'
+  'core.fuel', 'du.shield', 'du.flight', 'du.fuel', 'render.widgets',
+  'render.controller_view', 'bootstrap_controller'
 )
 $ctrlBoot = @"
 system.showScreen(1)
-CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, unit = unit, library = library, shield = shield_1, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
+fuelLowLevel = 20 --export: low-fuel warning when a fuel type drops below this percent
+fuelLowTime = 120 --export: low-fuel warning when estimated burn time drops below this many seconds
+CtrlApp = require('bootstrap_controller').start({ system = system, construct = construct, unit = unit, library = library, shield = shield_1, fuel = { atmo = atmofueltank, space = spacefueltank, rocket = rocketfueltank }, json = require('dkjson'), fuelLowLevel = fuelLowLevel / 100, fuelLowTime = fuelLowTime, db = db_1, codec = (db_1 ~= nil) and require('dkjson') or nil, build = $build })
 "@
 $ctrlBundle = Build-Bundle $ctrlModules 'bootstrap_controller' $ctrlBoot
 
@@ -212,6 +214,15 @@ slots:
     shield:
         class: ShieldGeneratorUnit
         select: manual
+    atmofueltank:
+        class: AtmoFuelContainer
+        select: all
+    spacefueltank:
+        class: SpaceFuelContainer
+        select: all
+    rocketfueltank:
+        class: RocketFuelContainer
+        select: all
     db:
         class: DataBank
         select: manual
@@ -230,7 +241,8 @@ $(Indent $ctrlBundle 16)
                 brakeInput = 0
                 dampingOff = 0 -- 0 = STABLE (rotation auto-damps), 1 = SMOOTH (holds spin)
                 warnedLast = false
-                warnSound = 'warning.mp3' --export: sound (in NQ/DualUniverse/audio) when braking with throttle
+                fuelWarnedLast = false
+                warnSound = 'warning.mp3' --export: sound (in NQ/DualUniverse/audio) when braking with throttle or low on fuel
                 local brakeToggle = true --export: Brake key toggles on/off (true) or is momentary hold (false)
                 brakeToggleMode = brakeToggle
     system:
@@ -295,6 +307,11 @@ $(Indent $ctrlBundle 16)
                 if warnBT and not warnedLast then system.playSound(warnSound) end
                 warnedLast = warnBT
                 if CtrlApp then CtrlApp.onUpdate(brakeInput, dampingOff, warnBT) end
+                -- Low-fuel alert: chime once on the rising edge (CtrlApp.lowFuel is
+                -- refreshed by the onUpdate render above).
+                local lowFuelNow = CtrlApp and CtrlApp.lowFuel or false
+                if lowFuelNow and not fuelWarnedLast then system.playSound(warnSound) end
+                fuelWarnedLast = lowFuelNow
         onActionStart:
             args: [forward]
             lua: pitchInput = pitchInput - 1

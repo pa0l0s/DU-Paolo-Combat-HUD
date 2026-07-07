@@ -11,6 +11,11 @@ local base = {
   },
   shield = nil, markersSvg = "",
   moveMarker = { x = 960, y = 540 }, warn = true,
+  fuel = {
+    { label = "SPACE", level = 0.6, pct = "60%", time = "4m30s", role = "ready" },
+    { label = "ROCKET", level = 0.1, pct = "10%", time = "45s", role = "threat" },
+  },
+  lowFuel = true,
 }
 
 local noShield = cv.build(base)
@@ -26,6 +31,20 @@ T.ok(noShield:find("OUTPUT  1.2 g", 1, true) ~= nil, "output g shown")
 T.ok(noShield:find("BRAKE OFF", 1, true) ~= nil, "brake state shown")
 T.ok(noShield:find("DIST 1.2km", 1, true) ~= nil, "brake distance shown")
 T.ok(noShield:find("SMOOTH", 1, true) ~= nil, "rotation mode shown")
+T.ok(noShield:find("FUEL", 1, true) ~= nil, "fuel block header")
+T.ok(noShield:find("SPACE", 1, true) ~= nil, "space fuel row")
+T.ok(noShield:find("ROCKET", 1, true) ~= nil, "rocket fuel row")
+T.ok(noShield:find("4m30s", 1, true) ~= nil, "fuel time shown")
+T.ok(noShield:find("LOW FUEL", 1, true) ~= nil, "low fuel warning shown")
+
+-- no fuel -> no fuel block, no warning
+local noFuel = {}
+for k, v in pairs(base) do noFuel[k] = v end
+noFuel.fuel = {}
+noFuel.lowFuel = false
+local nf = cv.build(noFuel)
+T.ok(nf:find("FUEL", 1, true) == nil, "no fuel block when no tanks")
+T.ok(nf:find("LOW FUEL", 1, true) == nil, "no low-fuel warning when not low")
 
 local withShield = {}
 for k, v in pairs(base) do withShield[k] = v end

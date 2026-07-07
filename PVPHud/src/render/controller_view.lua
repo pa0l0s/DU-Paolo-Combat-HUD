@@ -13,10 +13,14 @@ function M.build(state)
   local p = { state.css or "", svgOpen(w, h) }
 
   -- Flight panel (bottom-center): speed, throttle set + engine warm-up bars,
-  -- output g, and brake state + brake distance.
+  -- output g, brake state + brake distance, and a fuel block. The panel grows
+  -- upward per present fuel type so its bottom edge stays put.
   local f = state.flight
-  local fx, fy = w / 2 - 210, h - 250
-  p[#p + 1] = widgets.panel(fx, fy, 420, 220)
+  local fuel = state.fuel or {}
+  local fuelBlockH = (#fuel > 0) and (26 + #fuel * 22) or 0
+  local panelH = 220 + fuelBlockH
+  local fx, fy = w / 2 - 210, h - 30 - panelH
+  p[#p + 1] = widgets.panel(fx, fy, 420, panelH)
   p[#p + 1] = widgets.text(fx + 14, fy + 26, "FLIGHT", "base", 18)
   p[#p + 1] = widgets.text(fx + 300, fy + 26, f.rotMode or "STABLE", f.rotRole or "base", 15)
   p[#p + 1] = widgets.text(fx + 14, fy + 50, "SPEED   " .. f.speed, "base", 15)
@@ -34,6 +38,19 @@ function M.build(state)
   -- mass / max speed
   p[#p + 1] = widgets.text(fx + 14, fy + 192, "MASS " .. f.mass, "base", 13)
   p[#p + 1] = widgets.text(fx + 220, fy + 192, "MAX " .. f.maxSpeed, "base", 13)
+
+  -- Fuel block: one row per present type -> label, level bar, %, est. time left.
+  if #fuel > 0 then
+    local fuY = fy + 216
+    p[#p + 1] = widgets.text(fx + 14, fuY, "FUEL", "base", 14)
+    for i, r in ipairs(fuel) do
+      local y = fuY + i * 22
+      p[#p + 1] = widgets.text(fx + 14, y, r.label, "base", 13)
+      p[#p + 1] = widgets.bar(fx + 96, y - 11, 150, 12, r.level, r.role or "ready")
+      p[#p + 1] = widgets.text(fx + 256, y, r.pct, r.role or "base", 13)
+      p[#p + 1] = widgets.text(fx + 320, y, r.time, "base", 13)
+    end
+  end
 
   -- Shield panel (left)
   local s = state.shield
@@ -61,6 +78,11 @@ function M.build(state)
   -- Warning: braking while the throttle still commands thrust.
   if state.warn then
     p[#p + 1] = widgets.text(w / 2 - 150, h / 2 - 140, "! BRAKE + THROTTLE !", "threat", 24)
+  end
+
+  -- Warning: any fuel type running low.
+  if state.lowFuel then
+    p[#p + 1] = widgets.text(w / 2 - 90, h / 2 - 108, "! LOW FUEL !", "threat", 22)
   end
 
   if state.markersSvg and state.markersSvg ~= "" then p[#p + 1] = state.markersSvg end

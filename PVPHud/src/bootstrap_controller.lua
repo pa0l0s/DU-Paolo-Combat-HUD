@@ -6,8 +6,10 @@ local channel   = require("core.channel")
 local resist    = require("core.resist")
 local ballistics= require("core.ballistics")
 local flightCalc= require("core.flight")
+local fuelCalc  = require("core.fuel")
 local duShield  = require("du.shield")
 local duFlight  = require("du.flight")
+local duFuel    = require("du.fuel")
 local duConstruct = require("du.construct")
 local controllerView = require("render.controller_view")
 
@@ -19,10 +21,24 @@ function M.start(env)
   local sys = env.system
   local S = duShield.new(env.shield)
   local F = duFlight.new(env.construct, env.unit)
+  -- env.json is a JSON module (e.g. dkjson); du.fuel wants the decode function.
+  local FU = duFuel.new(env.fuel, env.json and env.json.decode) -- fuel container readings
   local C = duConstruct.new(env.library) -- getPointOnScreen projection
   local ch = channel.new(env.db, env.codec)
   ch.seed()
-  local app = { autoResist = true, shieldAdapter = S, _brake = 0, _damping = 0, _warn = false }
+  local app = {
+    autoResist = true, shieldAdapter = S, _brake = 0, _damping = 0, _warn = false,
+    lowFuel = false,
+    fuelLowLevel = env.fuelLowLevel or 0.2, -- fraction (0..1)
+    fuelLowTime = env.fuelLowTime or 120,   -- seconds
+  }
+
+  -- Fuel types in display order; only present types (tanks > 0) are shown.
+  local FUEL_TYPES = {
+    { label = "ATMO", read = FU.atmo },
+    { label = "SPACE", read = FU.space },
+    { label = "ROCKET", read = FU.rocket },
+  }
 
   function app.render()
     local sw, sh = sys.getScreenWidth(), sys.getScreenHeight()
@@ -89,10 +105,31 @@ function M.start(env)
       end
     end
 
+    -- Fuel: one row per present type (level bar + estimated burn time), and a
+    -- low-fuel flag that drives the on-screen warning + audible alert.
+    local fuelRows = {}
+    local anyLow = false
+    for _, ft in ipairs(FUEL_TYPES) do
+      local agg = fuelCalc.aggregate(ft.read())
+      if agg.present then
+        local low = fuelCalc.isLow(agg, app.fuelLowLevel, app.fuelLowTime)
+        anyLow = anyLow or low
+        fuelRows[#fuelRows + 1] = {
+          label = ft.label,
+          level = agg.level,
+          pct = string.format("%d%%", math.floor(agg.level * 100 + 0.5)),
+          time = format.duration(agg.timeLeft),
+          role = low and "threat" or "ready",
+        }
+      end
+    end
+    app.lowFuel = anyLow
+
     local html = controllerView.build({
       screenW = sw, screenH = sh, css = theme.css(),
       flight = flight, shield = shield, markersSvg = "",
       moveMarker = moveMarker, warn = app._warn,
+      fuel = fuelRows, lowFuel = anyLow,
     })
     sys.setScreen(html)
     return html
