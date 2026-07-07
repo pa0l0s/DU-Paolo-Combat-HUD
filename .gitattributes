@@ -1,0 +1,4 @@
+*.png binary
+*.zip binary
+*.conf text eol=lf
+*.lua text eol=lf

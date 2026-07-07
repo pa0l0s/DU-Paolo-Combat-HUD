@@ -32,9 +32,12 @@ function M.speed(mps)
 end
 
 -- seconds -> "45s" / "4m30s" / "1h05m". nil/inf/negative -> "--".
+-- When idling (near-zero burn) DU reports an astronomically large timeLeft;
+-- anything past 99h59m is capped to ">99h" so the readout stays sane.
 function M.duration(s)
   if type(s) ~= "number" or s ~= s or s == math.huge or s < 0 then return "--" end
   s = math.floor(s + 0.5)
+  if s >= 360000 then return ">99h" end
   if s >= 3600 then
     return string.format("%dh%02dm", math.floor(s / 3600), math.floor((s % 3600) / 60))
   elseif s >= 60 then
